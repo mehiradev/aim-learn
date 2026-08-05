@@ -39,8 +39,8 @@ export function generateTrials(count: number, env: Environment): Sample[] {
     const ball = BALL_LIST[Math.floor(Math.random() * BALL_LIST.length)]!;
     const angle = MIN_ANGLE + Math.random() * (MAX_ANGLE - MIN_ANGLE);
     // On fait aussi varier légèrement l'environnement pour généraliser le modèle
-    const speed = env.initialSpeed * (0.7 + Math.random() * 0.6);
-    const gravity = env.gravity * (0.7 + Math.random() * 0.6);
+    const speed = env.initialSpeed * (0.85 + Math.random() * 0.3);
+    const gravity = env.gravity * (0.85 + Math.random() * 0.3);
     const shot = simulateShot({ angleDeg: angle, mass: ball.mass }, { ...env, initialSpeed: speed, gravity });
     samples.push({ distance: shot.range, mass: ball.mass, speed, gravity, angle });
   }

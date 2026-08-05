@@ -46,7 +46,7 @@ export function InfoPanel({ lab }: { lab: Lab }) {
         >
           <span className="font-semibold">{lastRecord.hit ? "Cible touchée" : "Tir manqué"}</span>{" "}
           <span className="text-muted-foreground">
-            — {lastRecord.auto ? "tir automatique" : "tir manuel"}, boulet {BALLS[lastRecord.ballId].label.toLowerCase()},
+            — {lastRecord.auto ? "tir automatique" : "tir manuel"}, {BALLS[lastRecord.ballId].label.toLowerCase()},
             angle {lastRecord.angleDeg.toFixed(1)}°, temps de vol {lastRecord.flightTime.toFixed(2)} s, écart{" "}
             {Math.abs(lastRecord.error).toFixed(2)} m.
           </span>

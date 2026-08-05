@@ -51,7 +51,7 @@ export function useBallisticLab() {
   const [training, setTraining] = useState(false);
   const [progress, setProgress] = useState(0);
   const [liveMetrics, setLiveMetrics] = useState<TrainingMetrics | null>(null);
-  const [trialCount, setTrialCount] = useState(600);
+  const [trialCount, setTrialCount] = useState(1200);
 
   const busy = useRef(false);
   const shotRef = useRef<ActiveShot | null>(null);
