@@ -107,7 +107,8 @@ export function simulateShot(params: ShotParams, env: Environment): ShotResult {
     if (y <= 0 && t > dt) {
       // interpolation linéaire du point d'impact
       const ratio = prevY / (prevY - y || 1);
-      const impactX = trajectory[trajectory.length - 1].x + (x - trajectory[trajectory.length - 1].x) * ratio;
+      const prevX = trajectory[trajectory.length - 1]?.x ?? x;
+      const impactX = prevX + (x - prevX) * ratio;
       trajectory.push({ x: impactX, y: 0 });
       return { trajectory, range: impactX, flightTime: t, apex };
     }
