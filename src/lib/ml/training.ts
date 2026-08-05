@@ -5,7 +5,7 @@
 import { simulateShot, type Environment } from "../ballistics/physics";
 import { BALL_LIST } from "../ballistics/projectiles";
 import { createModel, type ModelId } from "./registry";
-import type { MLModel, Sample } from "./types";
+import { makeFeatures, type MLModel, type Sample } from "./types";
 
 /** Angles explorés : on reste sur la trajectoire tendue pour garder une fonction bijective. */
 export const MIN_ANGLE = 5;
@@ -57,7 +57,7 @@ export function evaluate(model: MLModel, validation: Sample[], env: Environment,
   const meanAngle = validation.reduce((a, s) => a + s.angle, 0) / validation.length;
 
   for (const s of validation) {
-    const predicted = clampAngle(model.predict([s.distance, s.mass, s.speed, s.gravity]));
+    const predicted = clampAngle(model.predict(makeFeatures(s.distance, s.mass, s.speed, s.gravity)));
     angleErr += Math.abs(predicted - s.angle);
     ssRes += (predicted - s.angle) ** 2;
     ssTot += (s.angle - meanAngle) ** 2;

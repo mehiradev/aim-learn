@@ -5,7 +5,7 @@
 import { simulateShot, type Environment } from "../ballistics/physics";
 import { BALL_LIST, type BallId } from "../ballistics/projectiles";
 import { clampAngle } from "./training";
-import type { MLModel } from "./types";
+import { makeFeatures, type MLModel } from "./types";
 
 export interface Solution {
   ballId: BallId;
@@ -16,7 +16,7 @@ export interface Solution {
 export function solve(model: MLModel, targetDistance: number, env: Environment): Solution {
   let best: Solution | null = null;
   for (const ball of BALL_LIST) {
-    const angle = clampAngle(model.predict([targetDistance, ball.mass, env.initialSpeed, env.gravity]));
+    const angle = clampAngle(model.predict(makeFeatures(targetDistance, ball.mass, env.initialSpeed, env.gravity)));
     const shot = simulateShot({ angleDeg: angle, mass: ball.mass }, env);
     const err = Math.abs(shot.range - targetDistance);
     if (!best || err < best.predictedError) {

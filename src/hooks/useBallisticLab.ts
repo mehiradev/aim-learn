@@ -54,6 +54,7 @@ export function useBallisticLab() {
   const [trialCount, setTrialCount] = useState(600);
 
   const busy = useRef(false);
+  const shotRef = useRef<ActiveShot | null>(null);
 
   const newTarget = useCallback(() => {
     setTarget(generateTarget());
@@ -85,21 +86,22 @@ export function useBallisticLab() {
       busy.current = true;
       setFlying(true);
       setLastRecord(null);
-      setActiveShot({ result, ballId: b, angleDeg: a, record });
+      const shot: ActiveShot = { result, ballId: b, angleDeg: a, record };
+      shotRef.current = shot;
+      setActiveShot(shot);
     },
     [angle, ballId, env, target],
   );
 
   const onImpact = useCallback(() => {
+    if (!busy.current) return;
     busy.current = false;
     setFlying(false);
-    setActiveShot((shot) => {
-      if (shot) {
-        setLastRecord(shot.record);
-        setHistory((h) => [shot.record, ...h].slice(0, 20));
-      }
-      return shot;
-    });
+    const shot = shotRef.current;
+    if (shot) {
+      setLastRecord(shot.record);
+      setHistory((h) => [shot.record, ...h].slice(0, 20));
+    }
   }, []);
 
   const startTraining = useCallback(async () => {

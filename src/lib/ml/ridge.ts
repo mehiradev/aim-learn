@@ -1,5 +1,5 @@
 /** Régression ridge sur base polynomiale (degré 2) — modèle supervisé classique. */
-import type { Features, MLModel, Sample } from "./types";
+import { makeFeatures, type Features, type MLModel, type Sample } from "./types";
 
 /** Expansion polynomiale : 1, xi, xi*xj */
 function expand(x: Features): number[] {
@@ -50,7 +50,7 @@ export class PolynomialRidgeModel implements MLModel {
 
   fit(samples: Sample[]): void {
     if (samples.length < 12) throw new Error("Jeu de données trop petit");
-    const X = samples.map((s) => expand([s.distance, s.mass, s.speed, s.gravity]));
+    const X = samples.map((s) => expand(makeFeatures(s.distance, s.mass, s.speed, s.gravity)));
     const y = samples.map((s) => s.angle);
     const d = (X[0] as number[]).length;
 

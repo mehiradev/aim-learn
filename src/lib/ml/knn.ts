@@ -1,5 +1,5 @@
 /** k plus proches voisins pondérés par la distance — modèle non paramétrique. */
-import type { Features, MLModel, Sample } from "./types";
+import { makeFeatures, type Features, type MLModel, type Sample } from "./types";
 
 export class KnnModel implements MLModel {
   readonly id = "knn";
@@ -7,15 +7,15 @@ export class KnnModel implements MLModel {
   readonly description = "Recherche les k tirs d'essai les plus proches et moyenne leurs angles.";
 
   private data: { x: Features; y: number }[] = [];
-  private mean: number[] = [0, 0, 0, 0];
-  private std: number[] = [1, 1, 1, 1];
+  private mean: number[] = [0, 0, 0, 0, 0];
+  private std: number[] = [1, 1, 1, 1, 1];
 
   constructor(private k = 5) {}
 
   fit(samples: Sample[]): void {
     if (samples.length < this.k) throw new Error("Jeu de données trop petit");
-    const raw: Features[] = samples.map((s) => [s.distance, s.mass, s.speed, s.gravity]);
-    for (let c = 0; c < 4; c++) {
+    const raw: Features[] = samples.map((s) => makeFeatures(s.distance, s.mass, s.speed, s.gravity));
+    for (let c = 0; c < 5; c++) {
       const col = raw.map((r) => r[c] as number);
       const m = col.reduce((a, b) => a + b, 0) / col.length;
       const v = Math.sqrt(col.reduce((a, b) => a + (b - m) ** 2, 0) / col.length) || 1;

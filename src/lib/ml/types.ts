@@ -17,10 +17,25 @@ export interface Sample {
   angle: number;
 }
 
-export type Features = [distance: number, mass: number, speed: number, gravity: number];
+/**
+ * Vecteur de caractéristiques. Les quatre premières valeurs sont brutes ;
+ * la cinquième est le ratio balistique adimensionnel (d*g/v²) qui rend le
+ * problème beaucoup plus facile à apprendre pour n'importe quel algorithme.
+ */
+export type Features = [
+  distance: number,
+  mass: number,
+  speed: number,
+  gravity: number,
+  ballisticRatio: number,
+];
+
+export function makeFeatures(distance: number, mass: number, speed: number, gravity: number): Features {
+  return [distance, mass, speed, gravity, (distance * gravity) / (speed * speed)];
+}
 
 export function toFeatures(s: Pick<Sample, "distance" | "mass" | "speed" | "gravity">): Features {
-  return [s.distance, s.mass, s.speed, s.gravity];
+  return makeFeatures(s.distance, s.mass, s.speed, s.gravity);
 }
 
 /** Interface à implémenter pour brancher n'importe quel algorithme. */
