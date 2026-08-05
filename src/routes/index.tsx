@@ -1,24 +1,65 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { SimulationCanvas } from "@/components/lab/SimulationCanvas";
+import { ControlPanel } from "@/components/lab/ControlPanel";
+import { InfoPanel } from "@/components/lab/InfoPanel";
+import { useBallisticLab } from "@/hooks/useBallisticLab";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "Ballistic Lab — Simulateur de canon 2D & machine learning" },
+      {
+        name: "description",
+        content:
+          "Simulez des tirs de canon en 2D, réglez angle, boulet, gravité et vitesse, puis entraînez un modèle de machine learning à toucher la cible automatiquement.",
+      },
+      { property: "og:title", content: "Ballistic Lab — Simulateur de canon 2D & machine learning" },
+      {
+        property: "og:description",
+        content:
+          "Physique balistique en temps réel, mode manuel, apprentissage supervisé et tir automatique dans le navigateur.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: BallisticLab,
 });
 
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
+function BallisticLab() {
+  const lab = useBallisticLab();
+
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
+    <main className="mx-auto min-h-screen w-full max-w-7xl px-4 py-8 sm:px-6">
+      <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="label-xs">Simulation balistique · machine learning</p>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+            Ballistic&nbsp;<span className="text-primary">Lab</span>
+          </h1>
+        </div>
+        <div className="rounded-lg border border-border bg-secondary/50 px-3 py-2 font-mono text-xs text-muted-foreground">
+          mode : <span className="text-primary">{lab.mode}</span> · cible :{" "}
+          <span className="text-accent">{lab.target.distance.toFixed(1)} m</span>
+        </div>
+      </header>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-5">
+          <SimulationCanvas
+            env={lab.env}
+            target={lab.target}
+            angleDeg={lab.angle}
+            ballId={lab.ballId}
+            showTrajectory={lab.showTrajectory}
+            animationSpeed={lab.animationSpeed}
+            activeShot={lab.activeShot}
+            onImpact={lab.onImpact}
+          />
+          <InfoPanel lab={lab} />
+        </div>
+        <ControlPanel lab={lab} />
+      </div>
+    </main>
   );
 }
