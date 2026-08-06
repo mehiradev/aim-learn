@@ -44,21 +44,19 @@ function BallisticLab() {
         </div>
       </header>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-5">
-          <SimulationCanvas
-            env={lab.env}
-            target={lab.target}
-            angleDeg={lab.angle}
-            ballId={lab.ballId}
-            showTrajectory={lab.showTrajectory}
-            animationSpeed={lab.animationSpeed}
-            activeShot={lab.activeShot}
-            onImpact={lab.onImpact}
-          />
-          <InfoPanel lab={lab} />
-        </div>
+      <div className="space-y-5">
         <ControlPanel lab={lab} />
+        <SimulationCanvas
+          env={lab.env}
+          target={lab.target}
+          angleDeg={lab.angle}
+          ballId={lab.ballId}
+          showTrajectory={lab.showTrajectory}
+          animationSpeed={lab.animationSpeed}
+          activeShot={lab.activeShot}
+          onImpact={lab.onImpact}
+        />
+        <InfoPanel lab={lab} />
       </div>
     </main>
   );
