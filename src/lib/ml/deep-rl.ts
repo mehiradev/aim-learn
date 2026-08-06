@@ -117,9 +117,12 @@ export class DeepRLModel implements MLModel {
   private std = new Array(RL_INPUT_NEURONS).fill(1);
   private trained = false;
   private epochs = 120;
+  /** Simulateur d'environnement utilisé pour la récompense (injecté par le registre). */
+  private rangeFn: (angleDeg: number, mass: number, speed: number, gravity: number) => number;
 
-  constructor(epochs = 120) {
+  constructor(epochs = 120, rangeFn?: (angleDeg: number, mass: number, speed: number, gravity: number) => number) {
     this.epochs = epochs;
+    this.rangeFn = rangeFn ?? ((a, _m, v, g) => analyticRange(a, v, g));
   }
 
   private normalize(x: Features | number[]): number[] {
@@ -157,7 +160,7 @@ export class DeepRLModel implements MLModel {
         const action = Math.max(MIN_A, Math.min(MAX_A, mu + randn() * std));
 
         // --- environnement : on tire et on mesure la récompense ---
-        const reached = analyticRange(action, s.speed, s.gravity);
+        const reached = this.rangeFn(action, s.mass, s.speed, s.gravity);
         const reward = -Math.abs(reached - s.distance) / Math.max(1, s.distance);
 
         // --- critique (baseline) ---
