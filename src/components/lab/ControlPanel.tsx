@@ -1,11 +1,10 @@
 /** Panneau de contrôle — modes, boulet, angle, actions, paramètres, apprentissage. */
-import { Crosshair, Flame, GraduationCap, Play, RefreshCw, Sparkles } from "lucide-react";
+import { Crosshair, Flame, GraduationCap, Play, RefreshCw, RotateCcw, Sparkles, Hand, Brain, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BALL_LIST, type BallId } from "@/lib/ballistics/projectiles";
 import { MODEL_OPTIONS, type ModelId } from "@/lib/ml/registry";
 import {
@@ -17,6 +16,12 @@ import {
 import type { useBallisticLab } from "@/hooks/useBallisticLab";
 
 type Lab = ReturnType<typeof useBallisticLab>;
+
+const MODES = [
+  { id: "manual" as const, label: "Manuel", icon: Hand },
+  { id: "learning" as const, label: "Apprentissage", icon: Brain },
+  { id: "auto" as const, label: "Automatique", icon: Bot },
+];
 
 function Row({ label, value, children }: { label: string; value: string; children: React.ReactNode }) {
   return (
@@ -35,13 +40,25 @@ export function ControlPanel({ lab }: { lab: Lab }) {
 
   return (
     <div className="panel flex flex-col gap-5 p-5">
-      <Tabs value={mode} onValueChange={(v) => lab.setMode(v as Lab["mode"])}>
-        <TabsList className="grid w-full grid-cols-3 bg-secondary">
-          <TabsTrigger value="manual">Manuel</TabsTrigger>
-          <TabsTrigger value="learning">Apprentissage</TabsTrigger>
-          <TabsTrigger value="auto">Automatique</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="grid grid-cols-3 gap-2">
+        {MODES.map((m) => {
+          const active = mode === m.id;
+          return (
+            <Button
+              key={m.id}
+              type="button"
+              size="lg"
+              variant={active ? "default" : "outline"}
+              aria-pressed={active}
+              className="h-auto flex-col gap-1 py-3"
+              onClick={() => lab.setMode(m.id)}
+            >
+              <m.icon className="size-5" />
+              <span className="text-xs font-semibold">{m.label}</span>
+            </Button>
+          );
+        })}
+      </div>
 
       {mode === "manual" && (
         <div className="space-y-5">
@@ -157,6 +174,13 @@ export function ControlPanel({ lab }: { lab: Lab }) {
             </div>
           )}
 
+          {lab.modelStale && (
+            <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-foreground">
+              L'environnement a changé depuis le dernier entraînement. Relancez l'apprentissage pour que le modèle
+              apprenne dans ces conditions.
+            </p>
+          )}
+
           {trained && (
             <p className="rounded-lg border border-success/40 bg-success/10 p-3 text-xs text-foreground">
               Modèle « {MODEL_OPTIONS.find((m) => m.id === trained.modelId)?.label} » entraîné et gardé en mémoire.
@@ -194,7 +218,12 @@ export function ControlPanel({ lab }: { lab: Lab }) {
       )}
 
       <div className="space-y-5 border-t border-border pt-5">
-        <h3 className="label-xs">Paramètres</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="label-xs">Paramètres</h3>
+          <Button type="button" variant="outline" size="sm" onClick={lab.resetEnv} disabled={lab.flying}>
+            <RotateCcw /> Réinitialiser
+          </Button>
+        </div>
         <Row label="Gravité" value={`${env.gravity.toFixed(2)} m/s²`}>
           <Slider
             value={[env.gravity]}

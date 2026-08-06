@@ -99,7 +99,7 @@ export async function trainModel(options: {
   const { modelId, totalTrials, batches, env, halfWidth, onProgress } = options;
   const dataset: Sample[] = [];
   const history: { trials: number; distanceMae: number }[] = [];
-  let model = createModel(modelId);
+  let model = createModel(modelId, env);
   let metrics: TrainingMetrics = { trials: 0, angleMae: 0, distanceMae: 0, r2: 0, hitRate: 0 };
   const perBatch = Math.max(10, Math.round(totalTrials / batches));
 
@@ -108,7 +108,7 @@ export async function trainModel(options: {
     const split = Math.floor(dataset.length * 0.8);
     const train = dataset.slice(0, split);
     const validation = dataset.slice(split);
-    model = createModel(modelId);
+    model = createModel(modelId, env);
     model.fit(train);
     metrics = { ...evaluate(model, validation, env, halfWidth), trials: dataset.length };
     history.push({ trials: dataset.length, distanceMae: metrics.distanceMae });
