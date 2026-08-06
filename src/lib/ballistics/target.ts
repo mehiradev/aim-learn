@@ -7,6 +7,9 @@ export interface Target {
   halfWidth: number;
 }
 
+/** Cible déterministe utilisée au premier rendu (SSR) avant randomisation côté client. */
+export const INITIAL_TARGET: Target = { distance: 200, halfWidth: 6 };
+
 export function generateTarget(minDistance = 60, maxDistance = 340, halfWidth = 6): Target {
   const distance = minDistance + Math.random() * (maxDistance - minDistance);
   return { distance: Math.round(distance * 10) / 10, halfWidth };

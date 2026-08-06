@@ -150,6 +150,38 @@ export function SimulationCanvas({
       ctx.fillStyle = colors.accent;
       ctx.fill();
 
+      // étiquette : distance de la cible
+      const labelText = `Cible ${target.distance.toFixed(1)} m`;
+      ctx.font = "600 12px ui-monospace, monospace";
+      const labelW = ctx.measureText(labelText).width + 12;
+      const labelX = Math.min(Math.max(targetPx - labelW / 2, 4), w - labelW - 4);
+      const labelY = groundY - 82;
+      ctx.fillStyle = colors.accent;
+      ctx.globalAlpha = 0.18;
+      ctx.fillRect(labelX, labelY, labelW, 20);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = colors.accent;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(labelX + 0.5, labelY + 0.5, labelW - 1, 19);
+      ctx.fillStyle = colors.accent;
+      ctx.fillText(labelText, labelX + 6, labelY + 14);
+
+      // cotation au sol canon → cible
+      ctx.strokeStyle = colors.accent;
+      ctx.globalAlpha = 0.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(padLeft, groundY + 26);
+      ctx.lineTo(targetPx, groundY + 26);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1;
+      ctx.font = "10px ui-monospace, monospace";
+      const dText = `${target.distance.toFixed(1)} m`;
+      const dW = ctx.measureText(dText).width;
+      ctx.fillStyle = colors.accent;
+      ctx.fillText(dText, Math.max(4, (padLeft + targetPx) / 2 - dW / 2), groundY + 38);
+
       // --- canon ---
       const baseX = padLeft;
       const drawAngle = shot ? shot.angleDeg : angleDeg;

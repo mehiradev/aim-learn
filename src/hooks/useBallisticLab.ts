@@ -1,10 +1,10 @@
 /**
  * UI Controller (état) — orchestre physique, cible, ML et animation.
  */
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_ENVIRONMENT, simulateShot, type Environment, type ShotResult } from "@/lib/ballistics/physics";
 import { BALLS, type BallId } from "@/lib/ballistics/projectiles";
-import { evaluateShot, generateTarget, type Target } from "@/lib/ballistics/target";
+import { evaluateShot, generateTarget, INITIAL_TARGET, type Target } from "@/lib/ballistics/target";
 import { solve } from "@/lib/ml/solver";
 import { trainModel, type TrainedModel, type TrainingMetrics } from "@/lib/ml/training";
 import type { ModelId } from "@/lib/ml/registry";
@@ -40,18 +40,23 @@ export function useBallisticLab() {
   const [showTrajectory, setShowTrajectory] = useState(true);
   const [animationSpeed, setAnimationSpeed] = useState(1);
 
-  const [target, setTarget] = useState<Target>(() => generateTarget());
+  const [target, setTarget] = useState<Target>(INITIAL_TARGET);
   const [activeShot, setActiveShot] = useState<ActiveShot | null>(null);
   const [lastRecord, setLastRecord] = useState<ShotRecord | null>(null);
   const [history, setHistory] = useState<ShotRecord[]>([]);
   const [flying, setFlying] = useState(false);
 
-  const [modelId, setModelId] = useState<ModelId>("ridge");
+  const [modelId, setModelId] = useState<ModelId>("deeprl");
   const [trained, setTrained] = useState<TrainedModel | null>(null);
   const [training, setTraining] = useState(false);
   const [progress, setProgress] = useState(0);
   const [liveMetrics, setLiveMetrics] = useState<TrainingMetrics | null>(null);
   const [trialCount, setTrialCount] = useState(1200);
+
+  // Cible aléatoire générée après hydratation (évite un écart serveur/client)
+  useEffect(() => {
+    setTarget(generateTarget());
+  }, []);
 
   const busy = useRef(false);
   const shotRef = useRef<ActiveShot | null>(null);
