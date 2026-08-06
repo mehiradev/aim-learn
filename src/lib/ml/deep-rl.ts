@@ -137,7 +137,7 @@ export class DeepRLModel implements MLModel {
       this.std[i] = Math.sqrt(v) || 1;
     }
 
-    const lrActor = 0.004;
+    const lrActor = (globalThis as any).__LR ?? 0.004;
     const lrCritic = 0.01;
     const pool = samples.length > 320 ? samples.slice(-320) : samples;
     let rewardStd = 0.3;
