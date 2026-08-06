@@ -141,6 +141,23 @@ export function useBallisticLab() {
     fire({ ballId: solution.ballId, angleDeg: solution.angleDeg, auto: true });
   }, [env, fire, target.distance, trained]);
 
+  const resetEnv = useCallback(() => {
+    setEnv(DEFAULT_ENVIRONMENT);
+    setAnimationSpeed(1);
+    setShowTrajectory(true);
+  }, []);
+
+  /** Le modèle a-t-il été entraîné dans un environnement différent de l'actuel ? */
+  const modelStale = useMemo(
+    () =>
+      !!trained &&
+      (trained.env.gravity !== env.gravity ||
+        trained.env.initialSpeed !== env.initialSpeed ||
+        trained.env.airDrag !== env.airDrag ||
+        trained.env.dragCoefficient !== env.dragCoefficient),
+    [env, trained],
+  );
+
   const previewRange = useMemo(
     () => simulateShot({ angleDeg: angle, mass: BALLS[ballId].mass }, env).range,
     [angle, ballId, env],
@@ -178,5 +195,7 @@ export function useBallisticLab() {
     startTraining,
     autoShoot,
     previewRange,
+    resetEnv,
+    modelStale,
   };
 }
