@@ -116,9 +116,9 @@ export class DeepRLModel implements MLModel {
   private mean = new Array(RL_INPUT_NEURONS).fill(0);
   private std = new Array(RL_INPUT_NEURONS).fill(1);
   private trained = false;
-  private epochs = 24;
+  private epochs = 120;
 
-  constructor(epochs = 24) {
+  constructor(epochs = 120) {
     this.epochs = epochs;
   }
 
@@ -137,7 +137,7 @@ export class DeepRLModel implements MLModel {
       this.std[i] = Math.sqrt(v) || 1;
     }
 
-    const lrActor = (globalThis as any).__LR ?? 0.004;
+    const lrActor = 0.0015;
     const lrCritic = 0.01;
     const pool = samples.length > 320 ? samples.slice(-320) : samples;
     let rewardStd = 0.3;

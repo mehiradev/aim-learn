@@ -7,7 +7,7 @@ import type { MLModel } from "./types";
 export type ModelId = "deeprl" | "ridge" | "knn";
 
 export const MODEL_FACTORIES: Record<ModelId, () => MLModel> = {
-  deeprl: () => new DeepRLModel(24),
+  deeprl: () => new DeepRLModel(120),
   ridge: () => new PolynomialRidgeModel(1e-3),
   knn: () => new KnnModel(5),
 };
