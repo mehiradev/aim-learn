@@ -103,6 +103,31 @@ export function ControlPanel({ lab }: { lab: Lab }) {
             </div>
           </div>
 
+          {lab.modelId === "deeprl" && (
+            <div className="rounded-lg border border-border bg-secondary/40 p-3">
+              <h4 className="label-xs">Architecture du réseau</h4>
+              <ul className="mt-2 space-y-1 font-mono text-[11px] text-muted-foreground">
+                <li>
+                  Entrée : <span className="text-foreground">{RL_INPUT_NEURONS} neurones</span> — distance, masse,
+                  vitesse, gravité, ratio d·g/v²
+                </li>
+                {RL_HIDDEN_LAYERS.map((n, i) => (
+                  <li key={i}>
+                    Couche cachée {i + 1} : <span className="text-foreground">{n} neurones</span> (tanh)
+                  </li>
+                ))}
+                <li>
+                  Sortie : <span className="text-foreground">{RL_OUTPUT_NEURONS} neurones</span> — μ (angle 5°–45°) et
+                  log σ (exploration)
+                </li>
+                <li>
+                  Critique : 5 → {RL_CRITIC_HIDDEN.join(" → ")} → 1 neurone (baseline)
+                </li>
+                <li className="text-accent">Récompense = −|portée − distance cible| / distance cible</li>
+              </ul>
+            </div>
+          )}
+
           <Row label="Tirs d'essai à générer" value={`${lab.trialCount}`}>
             <Slider
               value={[lab.trialCount]}
