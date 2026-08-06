@@ -67,7 +67,7 @@ class Dense {
   }
 
   /** Rétropropage dOut (dL/dOut) et applique la mise à jour. Renvoie dL/dInput. */
-  backward(dOut: number[], lr: number, momentum = 0.9): number[] {
+  backward(dOut: number[], lr: number, momentum = 0.6): number[] {
     const dIn = new Array(this.nIn).fill(0);
     for (let o = 0; o < this.nOut; o++) {
       const grad = this.act === "tanh" ? dOut[o]! * (1 - this.out[o]! ** 2) : dOut[o]!;
@@ -176,7 +176,7 @@ export class DeepRLModel implements MLModel {
         const gMu = clip(-advantage * dLogp_dMu * dMu_dMuRaw);
         const dLogp_dLogStd = ((action - mu) ** 2) / (std * std) - 1;
         const gLogStd = clip(-advantage * dLogp_dLogStd * 0.1);
-        this.actor.backward([gMu, gLogStd], lrActor);
+        this.actor.backward([gMu, gLogStd], lrActor / (1 + e * 0.08));
       }
     }
     this.trained = true;
