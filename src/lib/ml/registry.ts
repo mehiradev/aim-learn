@@ -1,11 +1,13 @@
 /** Registre des modèles disponibles — permet de remplacer l'algorithme facilement. */
+import { DeepRLModel } from "./deep-rl";
 import { KnnModel } from "./knn";
 import { PolynomialRidgeModel } from "./ridge";
 import type { MLModel } from "./types";
 
-export type ModelId = "ridge" | "knn";
+export type ModelId = "deeprl" | "ridge" | "knn";
 
 export const MODEL_FACTORIES: Record<ModelId, () => MLModel> = {
+  deeprl: () => new DeepRLModel(24),
   ridge: () => new PolynomialRidgeModel(1e-3),
   knn: () => new KnnModel(5),
 };
