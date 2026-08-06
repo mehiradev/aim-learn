@@ -182,26 +182,73 @@ export function SimulationCanvas({
       ctx.fillStyle = colors.accent;
       ctx.fillText(dText, Math.max(4, (padLeft + targetPx) / 2 - dW / 2), groundY + 38);
 
-      // --- canon ---
+      // --- canon (fût trapézoïdal sur affût à roue) ---
       const baseX = padLeft;
+      const pivotY = groundY - 16;
       const drawAngle = shot ? shot.angleDeg : angleDeg;
-      const barrel = 42;
+      const rad = (drawAngle * Math.PI) / 180;
+      const barrel = 40;
+      const ux = Math.cos(rad);
+      const uy = -Math.sin(rad);
+      const nx = -uy;
+      const ny = ux;
+      const rBack = 7;
+      const rFront = 4.5;
+
+      ctx.save();
+      // affût (châssis triangulaire)
+      ctx.fillStyle = colors.ground;
       ctx.strokeStyle = colors.primary;
-      ctx.lineWidth = 9;
-      ctx.lineCap = "round";
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(baseX, groundY - 8);
-      ctx.lineTo(
-        baseX + Math.cos((drawAngle * Math.PI) / 180) * barrel,
-        groundY - 8 - Math.sin((drawAngle * Math.PI) / 180) * barrel,
-      );
+      ctx.moveTo(baseX - 16, groundY);
+      ctx.lineTo(baseX + 18, groundY);
+      ctx.lineTo(baseX + 4, pivotY - 2);
+      ctx.closePath();
+      ctx.fill();
       ctx.stroke();
+
+      // fût : trapèze (large à la culasse, étroit à la bouche)
       ctx.fillStyle = colors.primary;
       ctx.beginPath();
-      ctx.arc(baseX, groundY - 8, 11, 0, Math.PI * 2);
+      ctx.moveTo(baseX + nx * rBack, pivotY + ny * rBack);
+      ctx.lineTo(baseX + ux * barrel + nx * rFront, pivotY + uy * barrel + ny * rFront);
+      ctx.lineTo(baseX + ux * barrel - nx * rFront, pivotY + uy * barrel - ny * rFront);
+      ctx.lineTo(baseX - nx * rBack, pivotY - ny * rBack);
+      ctx.closePath();
       ctx.fill();
+
+      // bourrelet de bouche
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = colors.primary;
+      ctx.beginPath();
+      ctx.moveTo(baseX + ux * (barrel - 4) + nx * (rFront + 2), pivotY + uy * (barrel - 4) + ny * (rFront + 2));
+      ctx.lineTo(baseX + ux * (barrel - 4) - nx * (rFront + 2), pivotY + uy * (barrel - 4) - ny * (rFront + 2));
+      ctx.stroke();
+
+      // culasse plate
+      ctx.beginPath();
+      ctx.moveTo(baseX + nx * rBack, pivotY + ny * rBack);
+      ctx.lineTo(baseX - nx * rBack, pivotY - ny * rBack);
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // roue
+      ctx.beginPath();
+      ctx.arc(baseX + 2, groundY - 8, 9, 0, Math.PI * 2);
       ctx.fillStyle = colors.ground;
-      ctx.fillRect(baseX - 13, groundY - 8, 26, 8);
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = colors.primary;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(baseX - 5, groundY - 8);
+      ctx.lineTo(baseX + 9, groundY - 8);
+      ctx.moveTo(baseX + 2, groundY - 15);
+      ctx.lineTo(baseX + 2, groundY - 1);
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
 
       // --- trajectoire + projectile ---
       if (shot) {
