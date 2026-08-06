@@ -137,9 +137,10 @@ export class DeepRLModel implements MLModel {
       this.std[i] = Math.sqrt(v) || 1;
     }
 
-    const lrActor = 0.02;
-    const lrCritic = 0.05;
+    const lrActor = 0.004;
+    const lrCritic = 0.01;
     const pool = samples.length > 320 ? samples.slice(-320) : samples;
+    let rewardStd = 0.3;
 
     for (let e = 0; e < this.epochs; e++) {
       for (const s of pool) {
@@ -147,11 +148,11 @@ export class DeepRLModel implements MLModel {
 
         // --- politique : μ (angle moyen) et σ (exploration) ---
         const out = this.actor.forward(x);
-        const muRaw = out[0]!;
-        const logStd = Math.max(-3, Math.min(0.5, out[1]!));
+        const muRaw = Math.max(-8, Math.min(8, out[0]!));
+        const logStd = Math.max(-2.5, Math.min(0.5, out[1]!));
         const muNorm = sigmoid(muRaw);
         const mu = MIN_A + muNorm * (MAX_A - MIN_A);
-        const std = Math.exp(logStd) * 6;
+        const std = Math.max(0.5, Math.exp(logStd) * 5);
 
         const action = Math.max(MIN_A, Math.min(MAX_A, mu + randn() * std));
 
@@ -161,16 +162,21 @@ export class DeepRLModel implements MLModel {
 
         // --- critique (baseline) ---
         const value = this.critic.forward(x)[0]!;
-        const advantage = reward - value;
-        this.critic.backward([2 * (value - reward)], lrCritic);
+        let advantage = reward - value;
+        this.critic.backward([Math.max(-1, Math.min(1, 2 * (value - reward)))], lrCritic);
+
+        // normalisation de l'avantage (stabilise le gradient de politique)
+        rewardStd = 0.95 * rewardStd + 0.05 * Math.abs(advantage);
+        advantage = Math.max(-3, Math.min(3, advantage / (rewardStd || 1)));
 
         // --- gradient de politique (maximiser advantage * logπ) ---
+        const clip = (g: number) => Math.max(-1, Math.min(1, g));
         const dLogp_dMu = (action - mu) / (std * std);
         const dMu_dMuRaw = (MAX_A - MIN_A) * muNorm * (1 - muNorm);
-        const gMu = -advantage * dLogp_dMu * dMu_dMuRaw;
+        const gMu = clip(-advantage * dLogp_dMu * dMu_dMuRaw);
         const dLogp_dLogStd = ((action - mu) ** 2) / (std * std) - 1;
-        const gLogStd = -advantage * dLogp_dLogStd;
-        this.actor.backward([gMu, Math.max(-1, Math.min(1, gLogStd))], lrActor);
+        const gLogStd = clip(-advantage * dLogp_dLogStd * 0.1);
+        this.actor.backward([gMu, gLogStd], lrActor);
       }
     }
     this.trained = true;
