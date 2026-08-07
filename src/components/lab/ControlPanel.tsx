@@ -217,49 +217,6 @@ export function ControlPanel({ lab }: { lab: Lab }) {
         </div>
       )}
 
-      <div className="space-y-5 border-t border-border pt-5">
-        <div className="flex items-center justify-between">
-          <h3 className="label-xs">Paramètres</h3>
-          <Button type="button" variant="outline" size="sm" onClick={lab.resetEnv} disabled={lab.flying}>
-            <RotateCcw /> Réinitialiser
-          </Button>
-        </div>
-        <Row label="Gravité" value={`${env.gravity.toFixed(2)} m/s²`}>
-          <Slider
-            value={[env.gravity]}
-            min={1}
-            max={25}
-            step={0.01}
-            onValueChange={([v]) => lab.setEnv({ ...env, gravity: v ?? 9.81 })}
-          />
-        </Row>
-        <Row label="Vitesse initiale" value={`${env.initialSpeed.toFixed(0)} m/s`}>
-          <Slider
-            value={[env.initialSpeed]}
-            min={20}
-            max={120}
-            step={1}
-            onValueChange={([v]) => lab.setEnv({ ...env, initialSpeed: v ?? 60 })}
-          />
-        </Row>
-        <Row label="Vitesse d'animation" value={`${lab.animationSpeed.toFixed(1)}×`}>
-          <Slider
-            value={[lab.animationSpeed]}
-            min={0.2}
-            max={5}
-            step={0.1}
-            onValueChange={([v]) => lab.setAnimationSpeed(v ?? 1)}
-          />
-        </Row>
-        <div className="flex items-center justify-between">
-          <Label className="label-xs">Afficher la trajectoire</Label>
-          <Switch checked={lab.showTrajectory} onCheckedChange={lab.setShowTrajectory} />
-        </div>
-        <div className="flex items-center justify-between">
-          <Label className="label-xs">Frottements de l'air</Label>
-          <Switch checked={env.airDrag} onCheckedChange={(c) => lab.setEnv({ ...env, airDrag: c })} />
-        </div>
-      </div>
     </div>
   );
 }
