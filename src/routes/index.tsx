@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SimulationCanvas } from "@/components/lab/SimulationCanvas";
 import { ControlPanel } from "@/components/lab/ControlPanel";
+import { SettingsPanel } from "@/components/lab/SettingsPanel";
 import { InfoPanel } from "@/components/lab/InfoPanel";
+import { APP_VERSION, BUILD_DATE, formatBuildDate } from "@/lib/build-info";
 import { useBallisticLab } from "@/hooks/useBallisticLab";
 
 export const Route = createFileRoute("/")({
