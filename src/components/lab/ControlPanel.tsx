@@ -198,7 +198,7 @@ export function ControlPanel({ lab }: { lab: Lab }) {
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Le modèle choisit le boulet et l'angle, puis tire automatiquement sur la cible générée.
+              Le réseau reçoit la distance de la cible et en déduit l'angle et la puissance du canon, puis tire.
             </p>
           )}
           <div className="flex gap-2">
