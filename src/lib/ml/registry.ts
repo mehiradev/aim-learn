@@ -8,13 +8,12 @@ import type { MLModel } from "./types";
 
 export type ModelId = "deeprl" | "ridge" | "knn";
 
-export const MODEL_FACTORIES: Record<ModelId, (env?: Environment) => MLModel> = {
+export const MODEL_FACTORIES: Record<ModelId, (env?: Environment, mass?: number) => MLModel> = {
   deeprl: (env) =>
     new DeepRLModel(
-      120,
+      140,
       env
-        ? (angle, mass, speed, gravity) =>
-            simulateShot({ angleDeg: angle, mass }, { ...env, initialSpeed: speed, gravity }).range
+        ? (angle, power, mass, gravity) => simulateShot({ angleDeg: angle, mass }, { ...env, power, gravity }).range
         : undefined,
     ),
   ridge: () => new PolynomialRidgeModel(1e-3),
@@ -28,8 +27,8 @@ export const MODEL_OPTIONS: { id: ModelId; label: string; description: string }[
   return { id, label: m.label, description: m.description };
 });
 
-export function createModel(id: ModelId, env?: Environment): MLModel {
-  return MODEL_FACTORIES[id](env);
+export function createModel(id: ModelId, env?: Environment, mass?: number): MLModel {
+  return MODEL_FACTORIES[id](env, mass);
 }
 
 export type { MLModel };
