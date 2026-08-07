@@ -1,9 +1,8 @@
-/** Panneau de contrôle — modes, boulet, angle, actions, paramètres, apprentissage. */
-import { Crosshair, Flame, GraduationCap, Play, RefreshCw, RotateCcw, Sparkles, Hand, Brain, Bot } from "lucide-react";
+/** Panneau de contrôle — modes, boulet, angle, actions et apprentissage. */
+import { Crosshair, Flame, GraduationCap, Play, RefreshCw, Sparkles, Hand, Brain, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { BALL_LIST, type BallId } from "@/lib/ballistics/projectiles";
 import { MODEL_OPTIONS, type ModelId } from "@/lib/ml/registry";
@@ -36,7 +35,7 @@ function Row({ label, value, children }: { label: string; value: string; childre
 }
 
 export function ControlPanel({ lab }: { lab: Lab }) {
-  const { mode, env, trained } = lab;
+  const { mode, trained } = lab;
 
   return (
     <div className="panel flex flex-col gap-5 p-5">
@@ -131,8 +130,7 @@ export function ControlPanel({ lab }: { lab: Lab }) {
               <h4 className="label-xs">Architecture du réseau</h4>
               <ul className="mt-2 space-y-1 font-mono text-[11px] text-muted-foreground">
                 <li>
-                  Entrée : <span className="text-foreground">{RL_INPUT_NEURONS} neurones</span> — distance, masse,
-                  vitesse, gravité, ratio d·g/v²
+                  Entrée : <span className="text-foreground">{RL_INPUT_NEURONS} neurone</span> — distance de la cible
                 </li>
                 {RL_HIDDEN_LAYERS.map((n, i) => (
                   <li key={i}>
@@ -140,13 +138,15 @@ export function ControlPanel({ lab }: { lab: Lab }) {
                   </li>
                 ))}
                 <li>
-                  Sortie : <span className="text-foreground">{RL_OUTPUT_NEURONS} neurones</span> — μ (angle 5°–45°) et
-                  log σ (exploration)
+                  Sortie : <span className="text-foreground">{RL_OUTPUT_NEURONS} neurones</span> — angle (5°–45°) et
+                  puissance (1–60 kJ)
                 </li>
                 <li>
-                  Critique : 5 → {RL_CRITIC_HIDDEN.join(" → ")} → 1 neurone (baseline)
+                  Critique : {RL_INPUT_NEURONS} → {RL_CRITIC_HIDDEN.join(" → ")} → 1 neurone (baseline)
                 </li>
-                <li className="text-accent">Récompense = −|portée − distance cible| / distance cible</li>
+                <li className="text-accent">
+                  Essais sur des cibles de distances variées (100–500 m) · récompense = −|portée − distance| / distance
+                </li>
               </ul>
             </div>
           )}
@@ -198,7 +198,7 @@ export function ControlPanel({ lab }: { lab: Lab }) {
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Le modèle choisit le boulet et l'angle, puis tire automatiquement sur la cible générée.
+              Le réseau reçoit la distance de la cible et en déduit l'angle et la puissance du canon, puis tire.
             </p>
           )}
           <div className="flex gap-2">
@@ -217,49 +217,6 @@ export function ControlPanel({ lab }: { lab: Lab }) {
         </div>
       )}
 
-      <div className="space-y-5 border-t border-border pt-5">
-        <div className="flex items-center justify-between">
-          <h3 className="label-xs">Paramètres</h3>
-          <Button type="button" variant="outline" size="sm" onClick={lab.resetEnv} disabled={lab.flying}>
-            <RotateCcw /> Réinitialiser
-          </Button>
-        </div>
-        <Row label="Gravité" value={`${env.gravity.toFixed(2)} m/s²`}>
-          <Slider
-            value={[env.gravity]}
-            min={1}
-            max={25}
-            step={0.01}
-            onValueChange={([v]) => lab.setEnv({ ...env, gravity: v ?? 9.81 })}
-          />
-        </Row>
-        <Row label="Vitesse initiale" value={`${env.initialSpeed.toFixed(0)} m/s`}>
-          <Slider
-            value={[env.initialSpeed]}
-            min={20}
-            max={120}
-            step={1}
-            onValueChange={([v]) => lab.setEnv({ ...env, initialSpeed: v ?? 60 })}
-          />
-        </Row>
-        <Row label="Vitesse d'animation" value={`${lab.animationSpeed.toFixed(1)}×`}>
-          <Slider
-            value={[lab.animationSpeed]}
-            min={0.2}
-            max={5}
-            step={0.1}
-            onValueChange={([v]) => lab.setAnimationSpeed(v ?? 1)}
-          />
-        </Row>
-        <div className="flex items-center justify-between">
-          <Label className="label-xs">Afficher la trajectoire</Label>
-          <Switch checked={lab.showTrajectory} onCheckedChange={lab.setShowTrajectory} />
-        </div>
-        <div className="flex items-center justify-between">
-          <Label className="label-xs">Frottements de l'air</Label>
-          <Switch checked={env.airDrag} onCheckedChange={(c) => lab.setEnv({ ...env, airDrag: c })} />
-        </div>
-      </div>
     </div>
   );
 }

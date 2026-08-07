@@ -1,9 +1,9 @@
 /**
- * Training Manager — génère les tirs d'essai (dataset) puis entraîne le modèle.
+ * Training Manager — génère les essais (cibles de distances variées) puis entraîne le modèle.
  * C'est le seul module qui fait le pont entre la physique et le ML.
  */
-import { simulateShot, type Environment } from "../ballistics/physics";
-import { BALL_LIST } from "../ballistics/projectiles";
+import { MAX_POWER, MIN_POWER, powerFromSpeed, simulateShot, type Environment } from "../ballistics/physics";
+import { TARGET_MAX_DISTANCE, TARGET_MIN_DISTANCE } from "../ballistics/target";
 import { createModel, type ModelId } from "./registry";
 import { makeFeatures, type MLModel, type Sample } from "./types";
 
@@ -13,14 +13,16 @@ export const MAX_ANGLE = 45;
 
 export interface TrainingMetrics {
   trials: number;
-  /** Erreur moyenne d'angle sur le jeu de validation (degrés) */
-  angleMae: number;
-  /** Erreur moyenne de distance simulée sur validation (m) */
+  /** Erreur moyenne de distance obtenue sur les cibles de validation (m) */
   distanceMae: number;
-  /** Qualité du modèle : R² sur l'angle prédit */
+  /** Qualité : R² sur la distance atteinte vs distance visée */
   r2: number;
-  /** Taux de tirs de validation tombant dans la cible */
+  /** Taux de cibles de validation touchées */
   hitRate: number;
+  /** Puissance moyenne proposée par le modèle (J) */
+  avgPower: number;
+  /** Angle moyen proposé par le modèle (°) */
+  avgAngle: number;
 }
 
 export interface TrainedModel {
@@ -29,59 +31,80 @@ export interface TrainedModel {
   metrics: TrainingMetrics;
   dataset: Sample[];
   env: Environment;
+  mass: number;
   history: { trials: number; distanceMae: number }[];
 }
 
-/** Génère un lot de tirs d'essai aléatoires. */
-export function generateTrials(count: number, env: Environment): Sample[] {
+export function clampAngle(a: number): number {
+  return Math.min(MAX_ANGLE, Math.max(MIN_ANGLE, a));
+}
+
+export function clampPower(p: number): number {
+  return Math.min(MAX_POWER, Math.max(MIN_POWER, p));
+}
+
+/** Tire une distance de cible au hasard dans la plage de jeu. */
+export function randomTargetDistance(): number {
+  return TARGET_MIN_DISTANCE + Math.random() * (TARGET_MAX_DISTANCE - TARGET_MIN_DISTANCE);
+}
+
+/**
+ * Génère un lot d'essais : à chaque fois une cible de distance différente,
+ * un angle exploré au hasard et la puissance théoriquement adaptée.
+ */
+export function generateTrials(count: number, env: Environment, mass: number): Sample[] {
   const samples: Sample[] = [];
   for (let i = 0; i < count; i++) {
-    const ball = BALL_LIST[Math.floor(Math.random() * BALL_LIST.length)]!;
+    const distance = randomTargetDistance();
     const angle = MIN_ANGLE + Math.random() * (MAX_ANGLE - MIN_ANGLE);
-    // On fait aussi varier légèrement l'environnement pour généraliser le modèle
-    const speed = env.initialSpeed * (0.85 + Math.random() * 0.3);
-    const gravity = env.gravity * (0.85 + Math.random() * 0.3);
-    const shot = simulateShot({ angleDeg: angle, mass: ball.mass }, { ...env, initialSpeed: speed, gravity });
-    samples.push({ distance: shot.range, mass: ball.mass, speed, gravity, angle });
+    const rad = (angle * Math.PI) / 180;
+    const v2 = (distance * env.gravity) / Math.max(0.05, Math.sin(2 * rad));
+    const power = clampPower(powerFromSpeed(Math.sqrt(v2), mass));
+    const shot = simulateShot({ angleDeg: angle, mass }, { ...env, power });
+    samples.push({ distance: shot.range, mass, gravity: env.gravity, angle, power });
   }
   return samples;
 }
 
-/** Évalue le modèle : erreur d'angle et erreur de distance réellement obtenue. */
-export function evaluate(model: MLModel, validation: Sample[], env: Environment, halfWidth: number): TrainingMetrics {
-  let angleErr = 0;
+/** Évalue le modèle : erreur de distance réellement obtenue sur des cibles inédites. */
+export function evaluate(
+  model: MLModel,
+  validation: Sample[],
+  env: Environment,
+  mass: number,
+  halfWidth: number,
+): TrainingMetrics {
   let distErr = 0;
   let hits = 0;
   let ssRes = 0;
   let ssTot = 0;
-  const meanAngle = validation.reduce((a, s) => a + s.angle, 0) / validation.length;
+  let sumPower = 0;
+  let sumAngle = 0;
+  const meanDist = validation.reduce((a, s) => a + s.distance, 0) / validation.length;
 
   for (const s of validation) {
-    const predicted = clampAngle(model.predict(makeFeatures(s.distance, s.mass, s.speed, s.gravity)));
-    angleErr += Math.abs(predicted - s.angle);
-    ssRes += (predicted - s.angle) ** 2;
-    ssTot += (s.angle - meanAngle) ** 2;
-    const shot = simulateShot(
-      { angleDeg: predicted, mass: s.mass },
-      { ...env, initialSpeed: s.speed, gravity: s.gravity },
-    );
+    const p = model.predict(makeFeatures(s.distance));
+    const angle = clampAngle(p.angleDeg);
+    const power = clampPower(p.power);
+    sumAngle += angle;
+    sumPower += power;
+    const shot = simulateShot({ angleDeg: angle, mass }, { ...env, power });
     const e = Math.abs(shot.range - s.distance);
     distErr += e;
+    ssRes += (shot.range - s.distance) ** 2;
+    ssTot += (s.distance - meanDist) ** 2;
     if (e <= halfWidth) hits++;
   }
 
   const n = validation.length;
   return {
     trials: 0,
-    angleMae: angleErr / n,
     distanceMae: distErr / n,
     r2: ssTot > 0 ? 1 - ssRes / ssTot : 0,
     hitRate: hits / n,
+    avgPower: sumPower / n,
+    avgAngle: sumAngle / n,
   };
-}
-
-export function clampAngle(a: number): number {
-  return Math.min(MAX_ANGLE, Math.max(MIN_ANGLE, a));
 }
 
 /**
@@ -93,29 +116,37 @@ export async function trainModel(options: {
   totalTrials: number;
   batches: number;
   env: Environment;
+  mass: number;
   halfWidth: number;
   onProgress?: (info: { progress: number; trials: number; metrics: TrainingMetrics }) => void;
 }): Promise<TrainedModel> {
-  const { modelId, totalTrials, batches, env, halfWidth, onProgress } = options;
+  const { modelId, totalTrials, batches, env, mass, halfWidth, onProgress } = options;
   const dataset: Sample[] = [];
   const history: { trials: number; distanceMae: number }[] = [];
-  let model = createModel(modelId, env);
-  let metrics: TrainingMetrics = { trials: 0, angleMae: 0, distanceMae: 0, r2: 0, hitRate: 0 };
+  let model = createModel(modelId, env, mass);
+  let metrics: TrainingMetrics = {
+    trials: 0,
+    distanceMae: 0,
+    r2: 0,
+    hitRate: 0,
+    avgPower: 0,
+    avgAngle: 0,
+  };
   const perBatch = Math.max(10, Math.round(totalTrials / batches));
 
   for (let b = 0; b < batches; b++) {
-    dataset.push(...generateTrials(perBatch, env));
+    dataset.push(...generateTrials(perBatch, env, mass));
     const split = Math.floor(dataset.length * 0.8);
     const train = dataset.slice(0, split);
     const validation = dataset.slice(split);
-    model = createModel(modelId, env);
+    model = createModel(modelId, env, mass);
     model.fit(train);
-    metrics = { ...evaluate(model, validation, env, halfWidth), trials: dataset.length };
+    metrics = { ...evaluate(model, validation, env, mass, halfWidth), trials: dataset.length };
     history.push({ trials: dataset.length, distanceMae: metrics.distanceMae });
     onProgress?.({ progress: (b + 1) / batches, trials: dataset.length, metrics });
     // Laisse respirer le thread principal pour que l'UI se rafraîchisse
     await new Promise((r) => setTimeout(r, 0));
   }
 
-  return { model, modelId, metrics, dataset, env, history };
+  return { model, modelId, metrics, dataset, env, mass, history };
 }

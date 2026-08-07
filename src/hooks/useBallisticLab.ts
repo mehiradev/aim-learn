@@ -2,7 +2,13 @@
  * UI Controller (état) — orchestre physique, cible, ML et animation.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { DEFAULT_ENVIRONMENT, simulateShot, type Environment, type ShotResult } from "@/lib/ballistics/physics";
+import {
+  DEFAULT_ENVIRONMENT,
+  simulateShot,
+  speedFromPower,
+  type Environment,
+  type ShotResult,
+} from "@/lib/ballistics/physics";
 import { BALLS, type BallId } from "@/lib/ballistics/projectiles";
 import { evaluateShot, generateTarget, INITIAL_TARGET, type Target } from "@/lib/ballistics/target";
 import { solve } from "@/lib/ml/solver";
@@ -15,6 +21,7 @@ export interface ShotRecord {
   angleDeg: number;
   ballId: BallId;
   mass: number;
+  power: number;
   speed: number;
   gravity: number;
   impactX: number;
@@ -68,18 +75,21 @@ export function useBallisticLab() {
   }, []);
 
   const fire = useCallback(
-    (opts?: { ballId?: BallId; angleDeg?: number; auto?: boolean }) => {
+    (opts?: { ballId?: BallId; angleDeg?: number; power?: number; auto?: boolean }) => {
       if (busy.current) return;
       const b = opts?.ballId ?? ballId;
       const a = opts?.angleDeg ?? angle;
+      const p = opts?.power ?? env.power;
       const ball = BALLS[b];
-      const result = simulateShot({ angleDeg: a, mass: ball.mass }, env);
+      const shotEnv: Environment = { ...env, power: p };
+      const result = simulateShot({ angleDeg: a, mass: ball.mass }, shotEnv);
       const evaluation = evaluateShot(result.range, target);
       const record: ShotRecord = {
         angleDeg: a,
         ballId: b,
         mass: ball.mass,
-        speed: env.initialSpeed,
+        power: p,
+        speed: result.initialSpeed,
         gravity: env.gravity,
         impactX: result.range,
         targetDistance: target.distance,
@@ -120,6 +130,7 @@ export function useBallisticLab() {
         totalTrials: trialCount,
         batches: 12,
         env,
+        mass: BALLS[ballId].mass,
         halfWidth: target.halfWidth,
         onProgress: ({ progress: p, metrics }) => {
           setProgress(p);
@@ -131,14 +142,15 @@ export function useBallisticLab() {
     } finally {
       setTraining(false);
     }
-  }, [env, modelId, target.halfWidth, trialCount, training]);
+  }, [ballId, env, modelId, target.halfWidth, trialCount, training]);
 
   const autoShoot = useCallback(() => {
     if (!trained) return;
     const solution = solve(trained.model, target.distance, env);
     setBallId(solution.ballId);
     setAngle(Math.round(solution.angleDeg * 10) / 10);
-    fire({ ballId: solution.ballId, angleDeg: solution.angleDeg, auto: true });
+    setEnv((e) => ({ ...e, power: Math.round(solution.power) }));
+    fire({ ballId: solution.ballId, angleDeg: solution.angleDeg, power: solution.power, auto: true });
   }, [env, fire, target.distance, trained]);
 
   const resetEnv = useCallback(() => {
@@ -152,16 +164,18 @@ export function useBallisticLab() {
     () =>
       !!trained &&
       (trained.env.gravity !== env.gravity ||
-        trained.env.initialSpeed !== env.initialSpeed ||
         trained.env.airDrag !== env.airDrag ||
-        trained.env.dragCoefficient !== env.dragCoefficient),
-    [env, trained],
+        trained.env.dragCoefficient !== env.dragCoefficient ||
+        trained.mass !== BALLS[ballId].mass),
+    [ballId, env, trained],
   );
 
   const previewRange = useMemo(
     () => simulateShot({ angleDeg: angle, mass: BALLS[ballId].mass }, env).range,
     [angle, ballId, env],
   );
+
+  const initialSpeed = useMemo(() => speedFromPower(env.power, BALLS[ballId].mass), [ballId, env.power]);
 
   return {
     mode,
@@ -195,6 +209,7 @@ export function useBallisticLab() {
     startTraining,
     autoShoot,
     previewRange,
+    initialSpeed,
     resetEnv,
     modelStale,
   };

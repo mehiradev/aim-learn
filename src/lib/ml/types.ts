@@ -5,37 +5,29 @@
 
 /** Une observation issue d'un tir d'essai. */
 export interface Sample {
-  /** Distance à atteindre (= portée obtenue par ce tir) en m */
+  /** Distance de la cible visée (m) — unique entrée du réseau */
   distance: number;
-  /** Masse du boulet (kg) */
+  /** Masse du boulet utilisé lors de l'essai (kg) */
   mass: number;
-  /** Vitesse initiale (m/s) */
-  speed: number;
-  /** Gravité (m/s²) */
+  /** Gravité de l'environnement (m/s²) */
   gravity: number;
-  /** Cible du modèle : angle de tir (degrés) */
+  /** Sortie 1 : angle de tir (degrés) */
   angle: number;
+  /** Sortie 2 : puissance du canon (joules) */
+  power: number;
 }
 
-/**
- * Vecteur de caractéristiques. Les quatre premières valeurs sont brutes ;
- * la cinquième est le ratio balistique adimensionnel (d*g/v²) qui rend le
- * problème beaucoup plus facile à apprendre pour n'importe quel algorithme.
- */
-export type Features = [
-  distance: number,
-  mass: number,
-  speed: number,
-  gravity: number,
-  ballisticRatio: number,
-];
+/** Vecteur d'entrée du modèle : uniquement la distance de la cible. */
+export type Features = [distance: number];
 
-export function makeFeatures(distance: number, mass: number, speed: number, gravity: number): Features {
-  return [distance, mass, speed, gravity, (distance * gravity) / (speed * speed)];
+export function makeFeatures(distance: number): Features {
+  return [distance];
 }
 
-export function toFeatures(s: Pick<Sample, "distance" | "mass" | "speed" | "gravity">): Features {
-  return makeFeatures(s.distance, s.mass, s.speed, s.gravity);
+/** Sortie du modèle : les deux réglages du canon. */
+export interface Prediction {
+  angleDeg: number;
+  power: number;
 }
 
 /** Interface à implémenter pour brancher n'importe quel algorithme. */
@@ -43,10 +35,10 @@ export interface MLModel {
   readonly id: string;
   readonly label: string;
   readonly description: string;
-  /** Entraîne le modèle sur le jeu de données. */
+  /** Entraîne le modèle sur le jeu d'essais. */
   fit(samples: Sample[]): void;
-  /** Prédit l'angle de tir (degrés) pour une configuration donnée. */
-  predict(x: Features): number;
+  /** Prédit l'angle et la puissance pour une distance de cible donnée. */
+  predict(x: Features): Prediction;
   /** true dès que fit() a été appelé avec succès. */
   isTrained(): boolean;
 }

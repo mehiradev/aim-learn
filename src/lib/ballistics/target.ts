@@ -7,10 +7,21 @@ export interface Target {
   halfWidth: number;
 }
 
-/** Cible déterministe utilisée au premier rendu (SSR) avant randomisation côté client. */
-export const INITIAL_TARGET: Target = { distance: 200, halfWidth: 6 };
+/** Plage de placement de la cible. */
+export const TARGET_MIN_DISTANCE = 100;
+export const TARGET_MAX_DISTANCE = 500;
 
-export function generateTarget(minDistance = 60, maxDistance = 340, halfWidth = 6): Target {
+/** Étendue horizontale fixe affichée par le simulateur (m). */
+export const VIEW_MAX_DISTANCE = 550;
+
+/** Cible déterministe utilisée au premier rendu (SSR) avant randomisation côté client. */
+export const INITIAL_TARGET: Target = { distance: 300, halfWidth: 8 };
+
+export function generateTarget(
+  minDistance = TARGET_MIN_DISTANCE,
+  maxDistance = TARGET_MAX_DISTANCE,
+  halfWidth = 8,
+): Target {
   const distance = minDistance + Math.random() * (maxDistance - minDistance);
   return { distance: Math.round(distance * 10) / 10, halfWidth };
 }

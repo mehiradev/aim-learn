@@ -25,7 +25,8 @@ export function InfoPanel({ lab }: { lab: Lab }) {
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <Stat label="Angle" value={`${lab.angle.toFixed(1)}°`} />
         <Stat label="Masse" value={`${BALLS[lab.ballId].mass} kg`} />
-        <Stat label="Vitesse" value={`${env.initialSpeed.toFixed(0)} m/s`} />
+        <Stat label="Puissance" value={`${(env.power / 1000).toFixed(1)} kJ`} />
+        <Stat label="Vitesse initiale" value={`${lab.initialSpeed.toFixed(1)} m/s`} />
         <Stat label="Gravité" value={`${env.gravity.toFixed(2)} m/s²`} />
         <Stat label="Distance cible" value={`${target.distance.toFixed(1)} m`} />
         <Stat label="Distance impact" value={lastRecord ? `${lastRecord.impactX.toFixed(1)} m` : "—"} />
@@ -55,7 +56,8 @@ export function InfoPanel({ lab }: { lab: Lab }) {
 
       {metrics && (
         <div className="grid grid-cols-2 gap-2 border-t border-border pt-4 sm:grid-cols-4">
-          <Stat label="Erreur angle moy." value={`${metrics.angleMae.toFixed(2)}°`} />
+          <Stat label="Angle moyen prédit" value={`${metrics.avgAngle.toFixed(1)}°`} />
+          <Stat label="Puissance moyenne" value={`${(metrics.avgPower / 1000).toFixed(1)} kJ`} />
           <Stat label="Erreur distance moy." value={`${metrics.distanceMae.toFixed(2)} m`} />
           <Stat label="Qualité (R²)" value={metrics.r2.toFixed(3)} />
           <Stat label="Taux de réussite" value={`${(metrics.hitRate * 100).toFixed(0)} %`} />

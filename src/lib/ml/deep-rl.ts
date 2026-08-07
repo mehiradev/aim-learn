@@ -2,21 +2,22 @@
  * Deep Reinforcement Learning — politique gaussienne (REINFORCE avec critique).
  *
  * Architecture définie ici :
- *  - Couche d'entrée   : 5 neurones  (distance, masse, vitesse, gravité, ratio balistique d·g/v²)
- *  - Couche cachée 1   : 24 neurones (tanh)
- *  - Couche cachée 2   : 16 neurones (tanh)
- *  - Couche de sortie  : 2 neurones  (μ via sigmoïde → angle ∈ [5°,45°], log σ pour l'exploration)
- *  - Réseau critique   : 5 → 16 (tanh) → 1 neurone (valeur, baseline de l'avantage)
+ *  - Couche d'entrée   : 1 neurone   (distance de la cible, normalisée)
+ *  - Couche cachée 1   : 16 neurones (tanh)
+ *  - Couche cachée 2   : 12 neurones (tanh)
+ *  - Couche de sortie  : 2 neurones  (angle de tir ∈ [5°,45°] et puissance ∈ [1 kJ,60 kJ])
+ *  - Réseau critique   : 1 → 16 (tanh) → 1 neurone (valeur, baseline de l'avantage)
  *
- * L'apprentissage n'est pas supervisé : le réseau tire (action = angle échantillonné),
- * reçoit une récompense = -|portée obtenue - distance visée| / distance visée,
- * puis met à jour ses poids dans la direction du gradient de la politique.
+ * L'apprentissage n'est pas supervisé : à chaque essai le réseau reçoit une
+ * distance de cible tirée au hasard, propose un couple (angle, puissance),
+ * observe la portée réellement obtenue, reçoit une récompense
+ * = -|portée - distance visée| / distance visée, puis corrige ses poids.
  */
-import { analyticRange } from "../ballistics/physics";
-import type { Features, MLModel, Sample } from "./types";
+import { analyticRange, MAX_POWER, MIN_POWER, speedFromPower } from "../ballistics/physics";
+import type { Features, MLModel, Prediction, Sample } from "./types";
 
-export const RL_INPUT_NEURONS = 5;
-export const RL_HIDDEN_LAYERS = [24, 16];
+export const RL_INPUT_NEURONS = 1;
+export const RL_HIDDEN_LAYERS = [16, 12];
 export const RL_OUTPUT_NEURONS = 2;
 export const RL_CRITIC_HIDDEN = [16];
 
@@ -30,6 +31,8 @@ function randn(): number {
   while (v === 0) v = Math.random();
   return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
 }
+
+const clamp01 = (v: number) => Math.max(0.001, Math.min(0.999, v));
 
 class Dense {
   W: number[][];
@@ -105,62 +108,67 @@ class Mlp {
 
 const sigmoid = (z: number) => 1 / (1 + Math.exp(-z));
 
+export type RangeFn = (angleDeg: number, power: number, mass: number, gravity: number) => number;
+
 export class DeepRLModel implements MLModel {
   readonly id = "deeprl";
   readonly label = "Deep RL (réseau de neurones)";
   readonly description =
-    "Réseau 5 → 24 → 16 → 2 entraîné par renforcement (REINFORCE + critique) : il tire, mesure sa récompense et corrige ses poids.";
+    "Réseau 1 → 16 → 12 → 2 entraîné par renforcement (REINFORCE + critique) : à partir de la seule distance de la cible, il propose un angle et une puissance, tire, puis corrige ses poids.";
 
   private actor = new Mlp([RL_INPUT_NEURONS, ...RL_HIDDEN_LAYERS, RL_OUTPUT_NEURONS]);
   private critic = new Mlp([RL_INPUT_NEURONS, ...RL_CRITIC_HIDDEN, 1]);
-  private mean = new Array(RL_INPUT_NEURONS).fill(0);
-  private std = new Array(RL_INPUT_NEURONS).fill(1);
+  private mean = 0;
+  private std = 1;
   private trained = false;
-  private epochs = 120;
+  private epochs: number;
   /** Simulateur d'environnement utilisé pour la récompense (injecté par le registre). */
-  private rangeFn: (angleDeg: number, mass: number, speed: number, gravity: number) => number;
+  private rangeFn: RangeFn;
 
-  constructor(epochs = 120, rangeFn?: (angleDeg: number, mass: number, speed: number, gravity: number) => number) {
+  constructor(epochs = 120, rangeFn?: RangeFn) {
     this.epochs = epochs;
-    this.rangeFn = rangeFn ?? ((a, _m, v, g) => analyticRange(a, v, g));
+    this.rangeFn =
+      rangeFn ?? ((angle, power, mass, gravity) => analyticRange(angle, speedFromPower(power, mass), gravity));
   }
 
-  private normalize(x: Features | number[]): number[] {
-    return Array.from({ length: RL_INPUT_NEURONS }, (_, i) => (x[i]! - this.mean[i]!) / (this.std[i]! || 1));
+  private normalize(distance: number): number[] {
+    return [(distance - this.mean) / (this.std || 1)];
+  }
+
+  private decode(out: number[]): { angleNorm: number; powerNorm: number } {
+    return { angleNorm: sigmoid(out[0]!), powerNorm: sigmoid(out[1]!) };
   }
 
   fit(samples: Sample[]): void {
     if (samples.length === 0) return;
-    const raw = samples.map((s) => [s.distance, s.mass, s.speed, s.gravity, (s.distance * s.gravity) / (s.speed * s.speed)]);
-    for (let i = 0; i < RL_INPUT_NEURONS; i++) {
-      const col = raw.map((r) => r[i]!);
-      const m = col.reduce((a, b) => a + b, 0) / col.length;
-      const v = col.reduce((a, b) => a + (b - m) ** 2, 0) / col.length;
-      this.mean[i] = m;
-      this.std[i] = Math.sqrt(v) || 1;
-    }
+    const dists = samples.map((s) => s.distance);
+    this.mean = dists.reduce((a, b) => a + b, 0) / dists.length;
+    this.std = Math.sqrt(dists.reduce((a, b) => a + (b - this.mean) ** 2, 0) / dists.length) || 1;
 
-    const lrActor = 0.0015;
-    const lrCritic = 0.01;
-    const pool = samples.length > 320 ? samples.slice(-320) : samples;
-    let rewardStd = 0.3;
+    const lrActor = 0.02;
+    const lrCritic = 0.05;
+    const pool = samples.length > 400 ? samples.slice(-400) : samples;
+    let advStd = 0.3;
 
     for (let e = 0; e < this.epochs; e++) {
+      // exploration décroissante : large au début, fine en fin d'apprentissage
+      const decay = Math.max(0.05, 1 - e / this.epochs);
+      const sigma = 0.05 + 0.3 * decay;
+
       for (const s of pool) {
-        const x = this.normalize([s.distance, s.mass, s.speed, s.gravity, (s.distance * s.gravity) / (s.speed * s.speed)]);
-
-        // --- politique : μ (angle moyen) et σ (exploration) ---
+        const x = this.normalize(s.distance);
         const out = this.actor.forward(x);
-        const muRaw = Math.max(-8, Math.min(8, out[0]!));
-        const logStd = Math.max(-2.5, Math.min(0.5, out[1]!));
-        const muNorm = sigmoid(muRaw);
-        const mu = MIN_A + muNorm * (MAX_A - MIN_A);
-        const std = Math.max(0.5, Math.exp(logStd) * 5);
+        const { angleNorm, powerNorm } = this.decode(out);
 
-        const action = Math.max(MIN_A, Math.min(MAX_A, mu + randn() * std));
+        // action = moyenne + bruit gaussien (dans l'espace normalisé [0,1])
+        const aAngle = clamp01(angleNorm + randn() * sigma);
+        const aPower = clamp01(powerNorm + randn() * sigma);
+
+        const angle = MIN_A + aAngle * (MAX_A - MIN_A);
+        const power = MIN_POWER + aPower * (MAX_POWER - MIN_POWER);
 
         // --- environnement : on tire et on mesure la récompense ---
-        const reached = this.rangeFn(action, s.mass, s.speed, s.gravity);
+        const reached = this.rangeFn(angle, power, s.mass, s.gravity);
         const reward = -Math.abs(reached - s.distance) / Math.max(1, s.distance);
 
         // --- critique (baseline) ---
@@ -168,26 +176,28 @@ export class DeepRLModel implements MLModel {
         let advantage = reward - value;
         this.critic.backward([Math.max(-1, Math.min(1, 2 * (value - reward)))], lrCritic);
 
-        // normalisation de l'avantage (stabilise le gradient de politique)
-        rewardStd = 0.95 * rewardStd + 0.05 * Math.abs(advantage);
-        advantage = Math.max(-3, Math.min(3, advantage / (rewardStd || 1)));
+        advStd = 0.95 * advStd + 0.05 * Math.abs(advantage);
+        advantage = Math.max(-3, Math.min(3, advantage / (advStd || 1)));
 
-        // --- gradient de politique (maximiser advantage * logπ) ---
+        // --- gradient de politique : maximiser advantage * log π(a|s) ---
         const clip = (g: number) => Math.max(-1, Math.min(1, g));
-        const dLogp_dMu = (action - mu) / (std * std);
-        const dMu_dMuRaw = (MAX_A - MIN_A) * muNorm * (1 - muNorm);
-        const gMu = clip(-advantage * dLogp_dMu * dMu_dMuRaw);
-        const dLogp_dLogStd = ((action - mu) ** 2) / (std * std) - 1;
-        const gLogStd = clip(-advantage * dLogp_dLogStd * 0.1);
-        this.actor.backward([gMu, gLogStd], lrActor / (1 + e * 0.08));
+        const grad = (action: number, mu: number) => {
+          const dLogp = (action - mu) / (sigma * sigma);
+          return clip(-advantage * dLogp * mu * (1 - mu));
+        };
+        this.actor.backward([grad(aAngle, angleNorm), grad(aPower, powerNorm)], lrActor / (1 + e * 0.05));
       }
     }
     this.trained = true;
   }
 
-  predict(x: Features): number {
-    const out = this.actor.forward(this.normalize(x));
-    return MIN_A + sigmoid(out[0]!) * (MAX_A - MIN_A);
+  predict(x: Features): Prediction {
+    const out = this.actor.forward(this.normalize(x[0]));
+    const { angleNorm, powerNorm } = this.decode(out);
+    return {
+      angleDeg: MIN_A + angleNorm * (MAX_A - MIN_A),
+      power: MIN_POWER + powerNorm * (MAX_POWER - MIN_POWER),
+    };
   }
 
   isTrained(): boolean {
