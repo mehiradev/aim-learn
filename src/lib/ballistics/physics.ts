@@ -1,25 +1,42 @@
 /**
  * Physics Engine — moteur balistique 2D simple et pédagogique.
  * Aucune dépendance à l'UI ou au machine learning.
+ *
+ * Le canon est réglé en PUISSANCE (joules) : l'énergie cinétique communiquée
+ * au boulet. La vitesse initiale en découle : E = ½·m·v²  ⇒  v = √(2E/m).
+ * Un boulet lourd part donc moins vite qu'un boulet léger à puissance égale.
  */
 
 export interface Environment {
   /** Gravité en m/s² (positive, vers le bas) */
   gravity: number;
-  /** Vitesse initiale du projectile en m/s */
-  initialSpeed: number;
+  /** Puissance du canon en joules (énergie cinétique transmise au boulet) */
+  power: number;
   /** Frottements de l'air activés ou non */
   airDrag: boolean;
   /** Coefficient de frottement (F = -k * |v| * v) */
   dragCoefficient: number;
 }
 
+export const MIN_POWER = 1000;
+export const MAX_POWER = 60000;
+
 export const DEFAULT_ENVIRONMENT: Environment = {
   gravity: 9.81,
-  initialSpeed: 60,
+  power: 10800,
   airDrag: false,
   dragCoefficient: 0.02,
 };
+
+/** Vitesse initiale (m/s) déduite de la puissance et de la masse du boulet. */
+export function speedFromPower(power: number, mass: number): number {
+  return Math.sqrt((2 * Math.max(0, power)) / Math.max(0.001, mass));
+}
+
+/** Puissance (J) nécessaire pour communiquer une vitesse donnée à une masse. */
+export function powerFromSpeed(speed: number, mass: number): number {
+  return 0.5 * mass * speed * speed;
+}
 
 export interface Point {
   x: number;
@@ -35,6 +52,8 @@ export interface ShotResult {
   flightTime: number;
   /** Hauteur maximale atteinte (m) */
   apex: number;
+  /** Vitesse initiale effective (m/s) */
+  initialSpeed: number;
 }
 
 export interface ShotParams {
@@ -48,7 +67,6 @@ const DEG = Math.PI / 180;
 
 /**
  * Portée analytique (sans frottements) : R = v² * sin(2θ) / g
- * La masse n'a aucun effet dans ce cas (physique classique du vide).
  */
 export function analyticRange(angleDeg: number, speed: number, gravity: number): number {
   return (speed * speed * Math.sin(2 * angleDeg * DEG)) / gravity;
@@ -57,12 +75,12 @@ export function analyticRange(angleDeg: number, speed: number, gravity: number):
 /**
  * Simule un tir et renvoie sa trajectoire échantillonnée.
  * Sans frottement : équations classiques du mouvement.
- * Avec frottement : intégration d'Euler semi-implicite (la masse joue alors un rôle).
+ * Avec frottement : intégration d'Euler semi-implicite.
  */
 export function simulateShot(params: ShotParams, env: Environment): ShotResult {
   const { angleDeg, mass } = params;
   const theta = angleDeg * DEG;
-  const v0 = env.initialSpeed;
+  const v0 = speedFromPower(env.power, mass);
   const g = env.gravity;
 
   const trajectory: Point[] = [];
@@ -79,7 +97,7 @@ export function simulateShot(params: ShotParams, env: Environment): ShotResult {
       apex = Math.max(apex, y);
       trajectory.push({ x, y });
     }
-    return { trajectory, range, flightTime: Math.max(flightTime, 0), apex };
+    return { trajectory, range, flightTime: Math.max(flightTime, 0), apex, initialSpeed: v0 };
   }
 
   // Intégration numérique avec frottement quadratique
@@ -105,15 +123,14 @@ export function simulateShot(params: ShotParams, env: Environment): ShotResult {
     apex = Math.max(apex, y);
 
     if (y <= 0 && t > dt) {
-      // interpolation linéaire du point d'impact
       const ratio = prevY / (prevY - y || 1);
       const prevX = trajectory[trajectory.length - 1]?.x ?? x;
       const impactX = prevX + (x - prevX) * ratio;
       trajectory.push({ x: impactX, y: 0 });
-      return { trajectory, range: impactX, flightTime: t, apex };
+      return { trajectory, range: impactX, flightTime: t, apex, initialSpeed: v0 };
     }
     if (trajectory.length < 4000) trajectory.push({ x, y });
   }
 
-  return { trajectory, range: x, flightTime: t, apex };
+  return { trajectory, range: x, flightTime: t, apex, initialSpeed: v0 };
 }
