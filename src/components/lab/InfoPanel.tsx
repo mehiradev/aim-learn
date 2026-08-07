@@ -56,7 +56,8 @@ export function InfoPanel({ lab }: { lab: Lab }) {
 
       {metrics && (
         <div className="grid grid-cols-2 gap-2 border-t border-border pt-4 sm:grid-cols-4">
-          <Stat label="Erreur angle moy." value={`${metrics.angleMae.toFixed(2)}°`} />
+          <Stat label="Angle moyen prédit" value={`${metrics.avgAngle.toFixed(1)}°`} />
+          <Stat label="Puissance moyenne" value={`${(metrics.avgPower / 1000).toFixed(1)} kJ`} />
           <Stat label="Erreur distance moy." value={`${metrics.distanceMae.toFixed(2)} m`} />
           <Stat label="Qualité (R²)" value={metrics.r2.toFixed(3)} />
           <Stat label="Taux de réussite" value={`${(metrics.hitRate * 100).toFixed(0)} %`} />
