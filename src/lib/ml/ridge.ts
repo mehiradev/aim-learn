@@ -1,17 +1,16 @@
-/** Régression ridge sur base polynomiale (degré 2) — modèle supervisé classique. */
-import { makeFeatures, type Features, type MLModel, type Sample } from "./types";
+/**
+ * Régression ridge (degré 2) sur la distance — deux sorties : angle et puissance.
+ */
+import { MAX_POWER, MIN_POWER } from "../ballistics/physics";
+import type { Features, MLModel, Prediction, Sample } from "./types";
 
-/** Expansion polynomiale : 1, xi, xi*xj */
-function expand(x: Features): number[] {
-  const out: number[] = [1];
-  for (let i = 0; i < x.length; i++) out.push(x[i] as number);
-  for (let i = 0; i < x.length; i++)
-    for (let j = i; j < x.length; j++) out.push((x[i] as number) * (x[j] as number));
-  return out;
+/** Base polynomiale sur la distance : 1, d, d² */
+function expand(distance: number): number[] {
+  return [1, distance, distance * distance];
 }
 
 /** Résolution d'un système linéaire par élimination de Gauss avec pivot. */
-function solve(A: number[][], b: number[]): number[] {
+function gauss(A: number[][], b: number[]): number[] {
   const n = b.length;
   const M = A.map((row, i) => [...row, b[i] as number]);
   for (let col = 0; col < n; col++) {
@@ -37,63 +36,53 @@ function solve(A: number[][], b: number[]): number[] {
   });
 }
 
+function ridgeFit(X: number[][], y: number[], lambda: number): number[] {
+  const d = (X[0] as number[]).length;
+  const A: number[][] = Array.from({ length: d }, () => Array(d).fill(0));
+  const b: number[] = Array(d).fill(0);
+  for (let i = 0; i < X.length; i++) {
+    const row = X[i] as number[];
+    for (let a = 0; a < d; a++) {
+      b[a] = (b[a] as number) + (row[a] as number) * (y[i] as number);
+      for (let c = 0; c < d; c++)
+        (A[a] as number[])[c] = ((A[a] as number[])[c] as number) + (row[a] as number) * (row[c] as number);
+    }
+  }
+  for (let i = 1; i < d; i++) (A[i] as number[])[i] = ((A[i] as number[])[i] as number) + lambda * X.length;
+  return gauss(A, b);
+}
+
 export class PolynomialRidgeModel implements MLModel {
   readonly id = "ridge";
   readonly label = "Régression polynomiale (ridge)";
-  readonly description = "Modèle supervisé : moindres carrés régularisés sur une base polynomiale de degré 2.";
+  readonly description =
+    "Modèle supervisé : moindres carrés régularisés sur une base polynomiale de la distance, deux sorties (angle, puissance).";
 
-  private weights: number[] | null = null;
-  private mean: number[] = [];
-  private std: number[] = [];
+  private wAngle: number[] | null = null;
+  private wPower: number[] | null = null;
+  private scale = 1;
 
   constructor(private lambda = 1e-3) {}
 
   fit(samples: Sample[]): void {
     if (samples.length < 12) throw new Error("Jeu de données trop petit");
-    const X = samples.map((s) => expand(makeFeatures(s.distance, s.mass, s.speed, s.gravity)));
-    const y = samples.map((s) => s.angle);
-    const d = (X[0] as number[]).length;
-
-    // Standardisation (colonne 0 = biais, laissée telle quelle)
-    this.mean = Array(d).fill(0);
-    this.std = Array(d).fill(1);
-    for (let c = 1; c < d; c++) {
-      const col = X.map((r) => (r as number[])[c] as number);
-      const m = col.reduce((a, b) => a + b, 0) / col.length;
-      const v = Math.sqrt(col.reduce((a, b) => a + (b - m) ** 2, 0) / col.length) || 1;
-      this.mean[c] = m;
-      this.std[c] = v;
-      for (const r of X) (r as number[])[c] = (((r as number[])[c] as number) - m) / v;
-    }
-
-    // Équations normales : (XᵀX + λI) w = Xᵀy
-    const A: number[][] = Array.from({ length: d }, () => Array(d).fill(0));
-    const b: number[] = Array(d).fill(0);
-    for (let i = 0; i < X.length; i++) {
-      const row = X[i] as number[];
-      for (let a = 0; a < d; a++) {
-        b[a] = (b[a] as number) + (row[a] as number) * (y[i] as number);
-        for (let c = 0; c < d; c++)
-          (A[a] as number[])[c] = ((A[a] as number[])[c] as number) + (row[a] as number) * (row[c] as number);
-      }
-    }
-    for (let i = 1; i < d; i++) (A[i] as number[])[i] = ((A[i] as number[])[i] as number) + this.lambda * X.length;
-
-    this.weights = solve(A, b);
+    this.scale = Math.max(1, ...samples.map((s) => s.distance));
+    const X = samples.map((s) => expand(s.distance / this.scale));
+    this.wAngle = ridgeFit(X, samples.map((s) => s.angle), this.lambda);
+    this.wPower = ridgeFit(X, samples.map((s) => s.power / MAX_POWER), this.lambda);
   }
 
-  predict(x: Features): number {
-    if (!this.weights) throw new Error("Modèle non entraîné");
-    const f = expand(x);
-    let sum = 0;
-    for (let i = 0; i < f.length; i++) {
-      const v = i === 0 ? 1 : ((f[i] as number) - (this.mean[i] as number)) / (this.std[i] as number);
-      sum += v * (this.weights[i] as number);
-    }
-    return sum;
+  predict(x: Features): Prediction {
+    if (!this.wAngle || !this.wPower) throw new Error("Modèle non entraîné");
+    const f = expand(x[0] / this.scale);
+    const dot = (w: number[]) => f.reduce((acc, v, i) => acc + v * (w[i] as number), 0);
+    return {
+      angleDeg: dot(this.wAngle),
+      power: Math.max(MIN_POWER, Math.min(MAX_POWER, dot(this.wPower) * MAX_POWER)),
+    };
   }
 
   isTrained(): boolean {
-    return this.weights !== null;
+    return this.wAngle !== null;
   }
 }
