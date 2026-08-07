@@ -2,7 +2,7 @@
 import { useEffect, useRef } from "react";
 import type { Environment } from "@/lib/ballistics/physics";
 import { BALLS, type BallId } from "@/lib/ballistics/projectiles";
-import type { Target } from "@/lib/ballistics/target";
+import { VIEW_MAX_DISTANCE, type Target } from "@/lib/ballistics/target";
 import type { ActiveShot } from "@/hooks/useBallisticLab";
 
 interface Props {
