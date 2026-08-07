@@ -35,7 +35,7 @@ function Row({ label, value, children }: { label: string; value: string; childre
 }
 
 export function ControlPanel({ lab }: { lab: Lab }) {
-  const { mode, env, trained } = lab;
+  const { mode, trained } = lab;
 
   return (
     <div className="panel flex flex-col gap-5 p-5">
