@@ -81,7 +81,8 @@ export function SimulationCanvas({
       const padLeft = 42;
       const padRight = 24;
       const groundY = h - 46;
-      const maxX = Math.max(target.distance * 1.25, shot ? shot.result.range * 1.12 : 0, 120);
+      // étendue horizontale fixe : le terrain affiche toujours 0 → 550 m
+      const maxX = VIEW_MAX_DISTANCE;
       const maxY = Math.max(shot ? shot.result.apex * 1.35 : 0, 60);
       const sx = (w - padLeft - padRight) / maxX;
       const sy = Math.min(sx, (groundY - 26) / maxY);
