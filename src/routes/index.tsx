@@ -38,9 +38,14 @@ function BallisticLab() {
             Ballistic&nbsp;<span className="text-primary">Lab</span>
           </h1>
         </div>
-        <div className="rounded-lg border border-border bg-secondary/50 px-3 py-2 font-mono text-xs text-muted-foreground">
-          mode : <span className="text-primary">{lab.mode}</span> · cible :{" "}
-          <span className="text-accent">{lab.target.distance.toFixed(1)} m</span>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="rounded-lg border border-border bg-secondary/50 px-3 py-2 font-mono text-xs text-muted-foreground">
+            v{APP_VERSION} · build {formatBuildDate(BUILD_DATE)}
+          </div>
+          <div className="rounded-lg border border-border bg-secondary/50 px-3 py-2 font-mono text-xs text-muted-foreground">
+            mode : <span className="text-primary">{lab.mode}</span> · cible :{" "}
+            <span className="text-accent">{lab.target.distance.toFixed(1)} m</span>
+          </div>
         </div>
       </header>
 
@@ -56,6 +61,7 @@ function BallisticLab() {
           activeShot={lab.activeShot}
           onImpact={lab.onImpact}
         />
+        <SettingsPanel lab={lab} />
         <InfoPanel lab={lab} />
       </div>
     </main>
