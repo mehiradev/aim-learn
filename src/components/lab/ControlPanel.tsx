@@ -131,8 +131,7 @@ export function ControlPanel({ lab }: { lab: Lab }) {
               <h4 className="label-xs">Architecture du réseau</h4>
               <ul className="mt-2 space-y-1 font-mono text-[11px] text-muted-foreground">
                 <li>
-                  Entrée : <span className="text-foreground">{RL_INPUT_NEURONS} neurones</span> — distance, masse,
-                  vitesse, gravité, ratio d·g/v²
+                  Entrée : <span className="text-foreground">{RL_INPUT_NEURONS} neurone</span> — distance de la cible
                 </li>
                 {RL_HIDDEN_LAYERS.map((n, i) => (
                   <li key={i}>
@@ -140,13 +139,15 @@ export function ControlPanel({ lab }: { lab: Lab }) {
                   </li>
                 ))}
                 <li>
-                  Sortie : <span className="text-foreground">{RL_OUTPUT_NEURONS} neurones</span> — μ (angle 5°–45°) et
-                  log σ (exploration)
+                  Sortie : <span className="text-foreground">{RL_OUTPUT_NEURONS} neurones</span> — angle (5°–45°) et
+                  puissance (1–60 kJ)
                 </li>
                 <li>
-                  Critique : 5 → {RL_CRITIC_HIDDEN.join(" → ")} → 1 neurone (baseline)
+                  Critique : {RL_INPUT_NEURONS} → {RL_CRITIC_HIDDEN.join(" → ")} → 1 neurone (baseline)
                 </li>
-                <li className="text-accent">Récompense = −|portée − distance cible| / distance cible</li>
+                <li className="text-accent">
+                  Essais sur des cibles de distances variées (100–500 m) · récompense = −|portée − distance| / distance
+                </li>
               </ul>
             </div>
           )}
