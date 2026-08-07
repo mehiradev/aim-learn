@@ -1,9 +1,8 @@
-/** Panneau de contrôle — modes, boulet, angle, actions, paramètres, apprentissage. */
-import { Crosshair, Flame, GraduationCap, Play, RefreshCw, RotateCcw, Sparkles, Hand, Brain, Bot } from "lucide-react";
+/** Panneau de contrôle — modes, boulet, angle, actions et apprentissage. */
+import { Crosshair, Flame, GraduationCap, Play, RefreshCw, Sparkles, Hand, Brain, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { BALL_LIST, type BallId } from "@/lib/ballistics/projectiles";
 import { MODEL_OPTIONS, type ModelId } from "@/lib/ml/registry";
