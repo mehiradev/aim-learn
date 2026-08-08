@@ -1,5 +1,5 @@
 /** Panneau de contrôle — modes, boulet, angle, actions et apprentissage. */
-import { Crosshair, Flame, GraduationCap, Play, RefreshCw, Sparkles, Hand, Brain, Bot } from "lucide-react";
+import { Crosshair, Flame, GraduationCap, Play, RefreshCw, Sparkles, Hand, Brain, Bot, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
