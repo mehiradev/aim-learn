@@ -84,7 +84,7 @@ export function ControlPanel({ lab }: { lab: Lab }) {
           <Row label="Angle de tir" value={`${lab.angle.toFixed(1)}°`}>
             <Slider
               value={[lab.angle]}
-              min={1}
+              min={30}
               max={89}
               step={0.5}
               onValueChange={([v]) => lab.setAngle(v ?? 45)}
@@ -130,7 +130,8 @@ export function ControlPanel({ lab }: { lab: Lab }) {
               <h4 className="label-xs">Architecture du réseau</h4>
               <ul className="mt-2 space-y-1 font-mono text-[11px] text-muted-foreground">
                 <li>
-                  Entrée : <span className="text-foreground">{RL_INPUT_NEURONS} neurone</span> — distance de la cible
+                  Entrée : <span className="text-foreground">{RL_INPUT_NEURONS} neurones</span> — distance de la cible
+                  et masse du boulet
                 </li>
                 {RL_HIDDEN_LAYERS.map((n, i) => (
                   <li key={i}>
@@ -138,7 +139,7 @@ export function ControlPanel({ lab }: { lab: Lab }) {
                   </li>
                 ))}
                 <li>
-                  Sortie : <span className="text-foreground">{RL_OUTPUT_NEURONS} neurones</span> — angle (5°–45°) et
+                  Sortie : <span className="text-foreground">{RL_OUTPUT_NEURONS} neurones</span> — angle (30°–45°) et
                   puissance (1–60 kJ)
                 </li>
                 <li>
@@ -192,15 +193,52 @@ export function ControlPanel({ lab }: { lab: Lab }) {
 
       {mode === "auto" && (
         <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2">
+              <div className="label-xs">Angle proposé</div>
+              <div className="mt-1 font-mono text-sm text-primary">
+                {lab.autoSolution ? `${lab.autoSolution.angleDeg.toFixed(1)}°` : "—"}
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-secondary/40 px-3 py-2">
+              <div className="label-xs">Puissance proposée</div>
+              <div className="mt-1 font-mono text-sm text-primary">
+                {lab.autoSolution ? `${(lab.autoSolution.power / 1000).toFixed(1)} kJ` : "—"}
+              </div>
+            </div>
+          </div>
+
           {!trained ? (
             <p className="rounded-lg border border-primary/40 bg-primary/10 p-3 text-sm text-foreground">
               Aucun modèle entraîné. Lancez d'abord un apprentissage.
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Le réseau reçoit la distance de la cible et en déduit l'angle et la puissance du canon, puis tire.
+              Le réseau reçoit la distance de la cible et la masse du boulet choisi, puis en déduit l'angle et la
+              puissance du canon.
             </p>
           )}
+
+          <div className="space-y-2">
+            <Label className="label-xs">Type de boulet</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {BALL_LIST.map((b) => (
+                <button
+                  key={b.id}
+                  onClick={() => lab.setBallId(b.id as BallId)}
+                  className={`rounded-lg border px-2 py-3 text-center transition-colors ${
+                    lab.ballId === b.id
+                      ? "border-primary bg-primary/15 text-primary"
+                      : "border-border bg-secondary/60 text-muted-foreground hover:border-primary/50"
+                  }`}
+                >
+                  <div className="text-xs font-semibold">{b.label.replace("Boulet ", "")}</div>
+                  <div className="font-mono text-[11px] opacity-80">{b.mass} kg</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="flex gap-2">
             <Button className="flex-1" onClick={lab.autoShoot} disabled={!trained || lab.flying}>
               <Sparkles /> Tir automatique
