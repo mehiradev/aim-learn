@@ -15,6 +15,7 @@ import type { Solution } from "@/lib/ml/solver";
 import { solve } from "@/lib/ml/solver";
 import { trainModel, type TrainedModel, type TrainingMetrics } from "@/lib/ml/training";
 import type { ModelId } from "@/lib/ml/registry";
+import { RL_HIDDEN_LAYERS } from "@/lib/ml/deep-rl";
 
 export type Mode = "manual" | "learning" | "auto";
 export type TargetMode = "random" | "manual";
@@ -63,6 +64,18 @@ export function useBallisticLab() {
   const [progress, setProgress] = useState(0);
   const [liveMetrics, setLiveMetrics] = useState<TrainingMetrics | null>(null);
   const [trialCount, setTrialCount] = useState(1200);
+  const [hiddenLayers, setHiddenLayers] = useState<number[]>([...RL_HIDDEN_LAYERS]);
+  const [rlEpochs, setRlEpochs] = useState(140);
+
+  const setLayerNeurons = useCallback((index: number, neurons: number) => {
+    setHiddenLayers((l) => l.map((n, i) => (i === index ? Math.max(1, Math.min(64, Math.round(neurons))) : n)));
+  }, []);
+  const addLayer = useCallback(() => {
+    setHiddenLayers((l) => (l.length >= 5 ? l : [...l, 8]));
+  }, []);
+  const removeLayer = useCallback((index: number) => {
+    setHiddenLayers((l) => (l.length <= 1 ? l : l.filter((_, i) => i !== index)));
+  }, []);
 
   // Cible aléatoire générée après hydratation (évite un écart serveur/client)
   useEffect(() => {
@@ -142,6 +155,7 @@ export function useBallisticLab() {
         env,
         mass: BALLS[ballId].mass,
         halfWidth: target.halfWidth,
+        rlConfig: { hiddenLayers, epochs: rlEpochs },
         onProgress: ({ progress: p, metrics }) => {
           setProgress(p);
           setLiveMetrics(metrics);
@@ -152,7 +166,7 @@ export function useBallisticLab() {
     } finally {
       setTraining(false);
     }
-  }, [ballId, env, modelId, target.halfWidth, trialCount, training]);
+  }, [ballId, env, hiddenLayers, modelId, rlEpochs, target.halfWidth, trialCount, training]);
 
   const autoShoot = useCallback(() => {
     if (!trained) return;
@@ -220,6 +234,12 @@ export function useBallisticLab() {
     liveMetrics,
     trialCount,
     setTrialCount,
+    hiddenLayers,
+    setLayerNeurons,
+    addLayer,
+    removeLayer,
+    rlEpochs,
+    setRlEpochs,
     startTraining,
     autoShoot,
     previewRange,

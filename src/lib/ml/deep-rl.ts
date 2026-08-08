@@ -116,7 +116,8 @@ export class DeepRLModel implements MLModel {
   readonly description =
     "Réseau 2 → 16 → 12 → 2 entraîné par renforcement (REINFORCE + critique) : à partir de la distance de la cible et de la masse du boulet, il propose un angle et une puissance, tire, puis corrige ses poids.";
 
-  private actor = new Mlp([RL_INPUT_NEURONS, ...RL_HIDDEN_LAYERS, RL_OUTPUT_NEURONS]);
+  readonly hiddenLayers: number[];
+  private actor: Mlp;
   private critic = new Mlp([RL_INPUT_NEURONS, ...RL_CRITIC_HIDDEN, 1]);
   private mean = 0;
   private std = 1;
@@ -127,8 +128,13 @@ export class DeepRLModel implements MLModel {
   /** Simulateur d'environnement utilisé pour la récompense (injecté par le registre). */
   private rangeFn: RangeFn;
 
-  constructor(epochs = 120, rangeFn?: RangeFn) {
+  constructor(epochs = 120, rangeFn?: RangeFn, hiddenLayers?: number[]) {
     this.epochs = epochs;
+    const layers = (hiddenLayers && hiddenLayers.length > 0 ? hiddenLayers : RL_HIDDEN_LAYERS).map((n) =>
+      Math.max(1, Math.round(n)),
+    );
+    this.hiddenLayers = layers;
+    this.actor = new Mlp([RL_INPUT_NEURONS, ...layers, RL_OUTPUT_NEURONS]);
     this.rangeFn =
       rangeFn ?? ((angle, power, mass, gravity) => analyticRange(angle, speedFromPower(power, mass), gravity));
   }

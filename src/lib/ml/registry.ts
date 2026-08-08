@@ -8,13 +8,22 @@ import type { MLModel } from "./types";
 
 export type ModelId = "deeprl" | "ridge" | "knn";
 
-export const MODEL_FACTORIES: Record<ModelId, (env?: Environment, mass?: number) => MLModel> = {
-  deeprl: (env) =>
+/** Hyper-paramètres réglables depuis l'interface pour le Deep RL. */
+export interface RlConfig {
+  /** Nombre de neurones de chaque couche intermédiaire. */
+  hiddenLayers?: number[];
+  /** Nombre d'essais (époques) d'apprentissage par renforcement. */
+  epochs?: number;
+}
+
+export const MODEL_FACTORIES: Record<ModelId, (env?: Environment, mass?: number, config?: RlConfig) => MLModel> = {
+  deeprl: (env, _mass, config) =>
     new DeepRLModel(
-      140,
+      config?.epochs ?? 140,
       env
         ? (angle, power, mass, gravity) => simulateShot({ angleDeg: angle, mass }, { ...env, power, gravity }).range
         : undefined,
+      config?.hiddenLayers,
     ),
   ridge: () => new PolynomialRidgeModel(1e-3),
   knn: () => new KnnModel(5),
@@ -27,8 +36,8 @@ export const MODEL_OPTIONS: { id: ModelId; label: string; description: string }[
   return { id, label: m.label, description: m.description };
 });
 
-export function createModel(id: ModelId, env?: Environment, mass?: number): MLModel {
-  return MODEL_FACTORIES[id](env, mass);
+export function createModel(id: ModelId, env?: Environment, mass?: number, config?: RlConfig): MLModel {
+  return MODEL_FACTORIES[id](env, mass, config);
 }
 
 export type { MLModel };
