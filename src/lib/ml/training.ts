@@ -5,7 +5,7 @@
 import { MAX_POWER, MIN_POWER, powerFromSpeed, simulateShot, type Environment } from "../ballistics/physics";
 import { BALL_LIST } from "../ballistics/projectiles";
 import { TARGET_MAX_DISTANCE, TARGET_MIN_DISTANCE } from "../ballistics/target";
-import { createModel, type ModelId } from "./registry";
+import { createModel, type ModelId, type RlConfig } from "./registry";
 import { makeFeatures, type MLModel, type Sample } from "./types";
 
 /** Angles explorés : on reste sur la trajectoire tendue pour garder une fonction bijective. */
@@ -121,12 +121,13 @@ export async function trainModel(options: {
   env: Environment;
   mass: number;
   halfWidth: number;
+  rlConfig?: RlConfig;
   onProgress?: (info: { progress: number; trials: number; metrics: TrainingMetrics }) => void;
 }): Promise<TrainedModel> {
-  const { modelId, totalTrials, batches, env, mass, halfWidth, onProgress } = options;
+  const { modelId, totalTrials, batches, env, mass, halfWidth, rlConfig, onProgress } = options;
   const dataset: Sample[] = [];
   const history: { trials: number; distanceMae: number }[] = [];
-  let model = createModel(modelId, env, mass);
+  let model = createModel(modelId, env, mass, rlConfig);
   let metrics: TrainingMetrics = {
     trials: 0,
     distanceMae: 0,
@@ -142,7 +143,7 @@ export async function trainModel(options: {
     const split = Math.floor(dataset.length * 0.8);
     const train = dataset.slice(0, split);
     const validation = dataset.slice(split);
-    model = createModel(modelId, env, mass);
+    model = createModel(modelId, env, mass, rlConfig);
     model.fit(train);
     metrics = { ...evaluate(model, validation, env, mass, halfWidth), trials: dataset.length };
     history.push({ trials: dataset.length, distanceMae: metrics.distanceMae });
