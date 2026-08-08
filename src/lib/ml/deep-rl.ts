@@ -116,7 +116,8 @@ export class DeepRLModel implements MLModel {
   readonly description =
     "Réseau 2 → 16 → 12 → 2 entraîné par renforcement (REINFORCE + critique) : à partir de la distance de la cible et de la masse du boulet, il propose un angle et une puissance, tire, puis corrige ses poids.";
 
-  private actor = new Mlp([RL_INPUT_NEURONS, ...RL_HIDDEN_LAYERS, RL_OUTPUT_NEURONS]);
+  readonly hiddenLayers: number[];
+  private actor: Mlp;
   private critic = new Mlp([RL_INPUT_NEURONS, ...RL_CRITIC_HIDDEN, 1]);
   private mean = 0;
   private std = 1;
