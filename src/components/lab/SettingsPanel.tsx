@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { MAX_POWER, MIN_POWER } from "@/lib/ballistics/physics";
+import { TARGET_MAX_DISTANCE, TARGET_MIN_DISTANCE } from "@/lib/ballistics/target";
 import type { useBallisticLab } from "@/hooks/useBallisticLab";
 
 type Lab = ReturnType<typeof useBallisticLab>;
@@ -32,6 +33,41 @@ export function SettingsPanel({ lab }: { lab: Lab }) {
           <RotateCcw /> Réinitialiser
         </Button>
       </div>
+
+      <div className="space-y-2">
+        <Label className="label-xs">Emplacement de la cible</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {(["random", "manual"] as const).map((m) => (
+            <Button
+              key={m}
+              type="button"
+              variant={lab.targetMode === m ? "default" : "outline"}
+              aria-pressed={lab.targetMode === m}
+              onClick={() => lab.setTargetMode(m)}
+              disabled={lab.flying}
+            >
+              {m === "random" ? "Aléatoire" : "Manuel"}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {lab.targetMode === "manual" ? (
+        <Row label="Distance de la cible" value={`${lab.target.distance.toFixed(1)} m`}>
+          <Slider
+            value={[lab.target.distance]}
+            min={TARGET_MIN_DISTANCE}
+            max={TARGET_MAX_DISTANCE}
+            step={1}
+            onValueChange={([v]) => lab.setTargetDistance(v ?? 300)}
+          />
+        </Row>
+      ) : (
+        <p className="label-xs">
+          La cible est tirée au hasard entre {TARGET_MIN_DISTANCE} et {TARGET_MAX_DISTANCE} m à chaque « Nouvelle
+          cible ».
+        </p>
+      )}
 
       <Row label="Gravité" value={`${env.gravity.toFixed(2)} m/s²`}>
         <Slider

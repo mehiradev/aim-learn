@@ -5,9 +5,9 @@
 
 /** Une observation issue d'un tir d'essai. */
 export interface Sample {
-  /** Distance de la cible visée (m) — unique entrée du réseau */
+  /** Distance de la cible visée (m) — entrée 1 du réseau */
   distance: number;
-  /** Masse du boulet utilisé lors de l'essai (kg) */
+  /** Masse du boulet utilisé lors de l'essai (kg) — entrée 2 du réseau */
   mass: number;
   /** Gravité de l'environnement (m/s²) */
   gravity: number;
@@ -17,11 +17,11 @@ export interface Sample {
   power: number;
 }
 
-/** Vecteur d'entrée du modèle : uniquement la distance de la cible. */
-export type Features = [distance: number];
+/** Vecteur d'entrée du modèle : distance de la cible et masse du boulet. */
+export type Features = [distance: number, mass: number];
 
-export function makeFeatures(distance: number): Features {
-  return [distance];
+export function makeFeatures(distance: number, mass: number): Features {
+  return [distance, mass];
 }
 
 /** Sortie du modèle : les deux réglages du canon. */
@@ -37,7 +37,7 @@ export interface MLModel {
   readonly description: string;
   /** Entraîne le modèle sur le jeu d'essais. */
   fit(samples: Sample[]): void;
-  /** Prédit l'angle et la puissance pour une distance de cible donnée. */
+  /** Prédit l'angle et la puissance pour une distance de cible et une masse données. */
   predict(x: Features): Prediction;
   /** true dès que fit() a été appelé avec succès. */
   isTrained(): boolean;

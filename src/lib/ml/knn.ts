@@ -5,7 +5,7 @@ export class KnnModel implements MLModel {
   readonly id = "knn";
   readonly label = "k plus proches voisins";
   readonly description =
-    "Modèle non paramétrique : retrouve les essais dont la distance de cible est la plus proche et moyenne leurs réglages.";
+    "Modèle non paramétrique : retrouve les essais dont la distance de cible et la masse du boulet sont les plus proches, puis moyenne leurs réglages.";
 
   private data: Sample[] = [];
 
@@ -18,9 +18,9 @@ export class KnnModel implements MLModel {
 
   predict(x: Features): Prediction {
     if (this.data.length === 0) throw new Error("Modèle non entraîné");
-    const target = x[0];
+    const [target, mass] = x;
     const neighbours = this.data
-      .map((s) => ({ s, d: Math.abs(s.distance - target) }))
+      .map((s) => ({ s, d: Math.hypot((s.distance - target) / 100, (s.mass - mass) / 5) }))
       .sort((a, b) => a.d - b.d)
       .slice(0, Math.min(this.k, this.data.length));
 
