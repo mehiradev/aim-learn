@@ -126,18 +126,13 @@ export function ControlPanel({ lab }: { lab: Lab }) {
           </div>
 
           {lab.modelId === "deeprl" && (
-            <div className="rounded-lg border border-border bg-secondary/40 p-3">
+            <div className="space-y-3 rounded-lg border border-border bg-secondary/40 p-3">
               <h4 className="label-xs">Architecture du réseau</h4>
-              <ul className="mt-2 space-y-1 font-mono text-[11px] text-muted-foreground">
+              <ul className="space-y-1 font-mono text-[11px] text-muted-foreground">
                 <li>
                   Entrée : <span className="text-foreground">{RL_INPUT_NEURONS} neurones</span> — distance de la cible
                   et masse du boulet
                 </li>
-                {RL_HIDDEN_LAYERS.map((n, i) => (
-                  <li key={i}>
-                    Couche cachée {i + 1} : <span className="text-foreground">{n} neurones</span> (tanh)
-                  </li>
-                ))}
                 <li>
                   Sortie : <span className="text-foreground">{RL_OUTPUT_NEURONS} neurones</span> — angle (30°–45°) et
                   puissance (1–60 kJ)
@@ -146,9 +141,55 @@ export function ControlPanel({ lab }: { lab: Lab }) {
                   Critique : {RL_INPUT_NEURONS} → {RL_CRITIC_HIDDEN.join(" → ")} → 1 neurone (baseline)
                 </li>
                 <li className="text-accent">
-                  Essais sur des cibles de distances variées (100–500 m) · récompense = −|portée − distance| / distance
+                  Réseau : {RL_INPUT_NEURONS} → {lab.hiddenLayers.join(" → ")} → {RL_OUTPUT_NEURONS}
                 </li>
               </ul>
+
+              <div className="space-y-3 border-t border-border pt-3">
+                <div className="flex items-center justify-between">
+                  <Label className="label-xs">Couches intermédiaires</Label>
+                  <Button size="sm" variant="outline" onClick={lab.addLayer} disabled={lab.hiddenLayers.length >= 5}>
+                    <Plus /> Ajouter
+                  </Button>
+                </div>
+                {lab.hiddenLayers.map((n, i) => (
+                  <div key={i} className="space-y-2">
+                    <div className="flex items-baseline justify-between">
+                      <Label className="label-xs">Couche {i + 1}</Label>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm text-foreground">{n} neurones</span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-7"
+                          aria-label={`Supprimer la couche ${i + 1}`}
+                          onClick={() => lab.removeLayer(i)}
+                          disabled={lab.hiddenLayers.length <= 1}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <Slider
+                      value={[n]}
+                      min={1}
+                      max={64}
+                      step={1}
+                      onValueChange={([v]) => lab.setLayerNeurons(i, v ?? n)}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <Row label="Essais d'apprentissage (époques)" value={`${lab.rlEpochs}`}>
+                <Slider
+                  value={[lab.rlEpochs]}
+                  min={10}
+                  max={500}
+                  step={10}
+                  onValueChange={([v]) => lab.setRlEpochs(v ?? 140)}
+                />
+              </Row>
             </div>
           )}
 
@@ -161,6 +202,7 @@ export function ControlPanel({ lab }: { lab: Lab }) {
               onValueChange={([v]) => lab.setTrialCount(v ?? 600)}
             />
           </Row>
+
 
           <Button className="w-full" onClick={lab.startTraining} disabled={lab.training}>
             <GraduationCap /> {lab.training ? "Apprentissage en cours…" : "Lancer l'apprentissage"}
