@@ -8,7 +8,7 @@ import { BALL_LIST, type BallId } from "@/lib/ballistics/projectiles";
 import { MODEL_OPTIONS, type ModelId } from "@/lib/ml/registry";
 import {
   RL_CRITIC_HIDDEN,
-  RL_HIDDEN_LAYERS,
+  
   RL_INPUT_NEURONS,
   RL_OUTPUT_NEURONS,
 } from "@/lib/ml/deep-rl";
