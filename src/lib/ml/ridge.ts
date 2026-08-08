@@ -4,9 +4,9 @@
 import { MAX_POWER, MIN_POWER } from "../ballistics/physics";
 import type { Features, MLModel, Prediction, Sample } from "./types";
 
-/** Base polynomiale sur la distance : 1, d, d² */
-function expand(distance: number): number[] {
-  return [1, distance, distance * distance];
+/** Base polynomiale sur (distance, masse) : 1, d, d², m, m·d, m² */
+function expand(distance: number, mass: number): number[] {
+  return [1, distance, distance * distance, mass, mass * distance, mass * mass];
 }
 
 /** Résolution d'un système linéaire par élimination de Gauss avec pivot. */
