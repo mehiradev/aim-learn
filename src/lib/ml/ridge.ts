@@ -56,25 +56,27 @@ export class PolynomialRidgeModel implements MLModel {
   readonly id = "ridge";
   readonly label = "Régression polynomiale (ridge)";
   readonly description =
-    "Modèle supervisé : moindres carrés régularisés sur une base polynomiale de la distance, deux sorties (angle, puissance).";
+    "Modèle supervisé : moindres carrés régularisés sur une base polynomiale de la distance et de la masse, deux sorties (angle, puissance).";
 
   private wAngle: number[] | null = null;
   private wPower: number[] | null = null;
   private scale = 1;
+  private massScale = 1;
 
   constructor(private lambda = 1e-3) {}
 
   fit(samples: Sample[]): void {
     if (samples.length < 12) throw new Error("Jeu de données trop petit");
     this.scale = Math.max(1, ...samples.map((s) => s.distance));
-    const X = samples.map((s) => expand(s.distance / this.scale));
+    this.massScale = Math.max(1, ...samples.map((s) => s.mass));
+    const X = samples.map((s) => expand(s.distance / this.scale, s.mass / this.massScale));
     this.wAngle = ridgeFit(X, samples.map((s) => s.angle), this.lambda);
     this.wPower = ridgeFit(X, samples.map((s) => s.power / MAX_POWER), this.lambda);
   }
 
   predict(x: Features): Prediction {
     if (!this.wAngle || !this.wPower) throw new Error("Modèle non entraîné");
-    const f = expand(x[0] / this.scale);
+    const f = expand(x[0] / this.scale, x[1] / this.massScale);
     const dot = (w: number[]) => f.reduce((acc, v, i) => acc + v * (w[i] as number), 0);
     return {
       angleDeg: dot(this.wAngle),
