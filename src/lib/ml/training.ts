@@ -3,12 +3,13 @@
  * C'est le seul module qui fait le pont entre la physique et le ML.
  */
 import { MAX_POWER, MIN_POWER, powerFromSpeed, simulateShot, type Environment } from "../ballistics/physics";
+import { BALL_LIST } from "../ballistics/projectiles";
 import { TARGET_MAX_DISTANCE, TARGET_MIN_DISTANCE } from "../ballistics/target";
 import { createModel, type ModelId } from "./registry";
 import { makeFeatures, type MLModel, type Sample } from "./types";
 
 /** Angles explorés : on reste sur la trajectoire tendue pour garder une fonction bijective. */
-export const MIN_ANGLE = 5;
+export const MIN_ANGLE = 30;
 export const MAX_ANGLE = 45;
 
 export interface TrainingMetrics {
@@ -52,10 +53,12 @@ export function randomTargetDistance(): number {
  * Génère un lot d'essais : à chaque fois une cible de distance différente,
  * un angle exploré au hasard et la puissance théoriquement adaptée.
  */
-export function generateTrials(count: number, env: Environment, mass: number): Sample[] {
+export function generateTrials(count: number, env: Environment, _mass: number): Sample[] {
   const samples: Sample[] = [];
   for (let i = 0; i < count; i++) {
     const distance = randomTargetDistance();
+    // on varie aussi le boulet : le réseau apprend l'influence de la masse
+    const mass = BALL_LIST[i % BALL_LIST.length]!.mass;
     const angle = MIN_ANGLE + Math.random() * (MAX_ANGLE - MIN_ANGLE);
     const rad = (angle * Math.PI) / 180;
     const v2 = (distance * env.gravity) / Math.max(0.05, Math.sin(2 * rad));
@@ -71,7 +74,7 @@ export function evaluate(
   model: MLModel,
   validation: Sample[],
   env: Environment,
-  mass: number,
+  _mass: number,
   halfWidth: number,
 ): TrainingMetrics {
   let distErr = 0;
@@ -83,12 +86,12 @@ export function evaluate(
   const meanDist = validation.reduce((a, s) => a + s.distance, 0) / validation.length;
 
   for (const s of validation) {
-    const p = model.predict(makeFeatures(s.distance));
+    const p = model.predict(makeFeatures(s.distance, s.mass));
     const angle = clampAngle(p.angleDeg);
     const power = clampPower(p.power);
     sumAngle += angle;
     sumPower += power;
-    const shot = simulateShot({ angleDeg: angle, mass }, { ...env, power });
+    const shot = simulateShot({ angleDeg: angle, mass: s.mass }, { ...env, power });
     const e = Math.abs(shot.range - s.distance);
     distErr += e;
     ssRes += (shot.range - s.distance) ** 2;

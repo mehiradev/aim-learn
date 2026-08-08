@@ -2,11 +2,11 @@
  * Deep Reinforcement Learning — politique gaussienne (REINFORCE avec critique).
  *
  * Architecture définie ici :
- *  - Couche d'entrée   : 1 neurone   (distance de la cible, normalisée)
+ *  - Couche d'entrée   : 2 neurones  (distance de la cible et masse du boulet, normalisées)
  *  - Couche cachée 1   : 16 neurones (tanh)
  *  - Couche cachée 2   : 12 neurones (tanh)
- *  - Couche de sortie  : 2 neurones  (angle de tir ∈ [5°,45°] et puissance ∈ [1 kJ,60 kJ])
- *  - Réseau critique   : 1 → 16 (tanh) → 1 neurone (valeur, baseline de l'avantage)
+ *  - Couche de sortie  : 2 neurones  (angle de tir ∈ [30°,45°] et puissance ∈ [1 kJ,60 kJ])
+ *  - Réseau critique   : 2 → 16 (tanh) → 1 neurone (valeur, baseline de l'avantage)
  *
  * L'apprentissage n'est pas supervisé : à chaque essai le réseau reçoit une
  * distance de cible tirée au hasard, propose un couple (angle, puissance),
@@ -16,12 +16,12 @@
 import { analyticRange, MAX_POWER, MIN_POWER, speedFromPower } from "../ballistics/physics";
 import type { Features, MLModel, Prediction, Sample } from "./types";
 
-export const RL_INPUT_NEURONS = 1;
+export const RL_INPUT_NEURONS = 2;
 export const RL_HIDDEN_LAYERS = [16, 12];
 export const RL_OUTPUT_NEURONS = 2;
 export const RL_CRITIC_HIDDEN = [16];
 
-const MIN_A = 5;
+const MIN_A = 30;
 const MAX_A = 45;
 
 function randn(): number {
@@ -114,12 +114,14 @@ export class DeepRLModel implements MLModel {
   readonly id = "deeprl";
   readonly label = "Deep RL (réseau de neurones)";
   readonly description =
-    "Réseau 1 → 16 → 12 → 2 entraîné par renforcement (REINFORCE + critique) : à partir de la seule distance de la cible, il propose un angle et une puissance, tire, puis corrige ses poids.";
+    "Réseau 2 → 16 → 12 → 2 entraîné par renforcement (REINFORCE + critique) : à partir de la distance de la cible et de la masse du boulet, il propose un angle et une puissance, tire, puis corrige ses poids.";
 
   private actor = new Mlp([RL_INPUT_NEURONS, ...RL_HIDDEN_LAYERS, RL_OUTPUT_NEURONS]);
   private critic = new Mlp([RL_INPUT_NEURONS, ...RL_CRITIC_HIDDEN, 1]);
   private mean = 0;
   private std = 1;
+  private massMean = 0;
+  private massStd = 1;
   private trained = false;
   private epochs: number;
   /** Simulateur d'environnement utilisé pour la récompense (injecté par le registre). */
@@ -131,8 +133,8 @@ export class DeepRLModel implements MLModel {
       rangeFn ?? ((angle, power, mass, gravity) => analyticRange(angle, speedFromPower(power, mass), gravity));
   }
 
-  private normalize(distance: number): number[] {
-    return [(distance - this.mean) / (this.std || 1)];
+  private normalize(distance: number, mass: number): number[] {
+    return [(distance - this.mean) / (this.std || 1), (mass - this.massMean) / (this.massStd || 1)];
   }
 
   private decode(out: number[]): { angleNorm: number; powerNorm: number } {
@@ -144,6 +146,9 @@ export class DeepRLModel implements MLModel {
     const dists = samples.map((s) => s.distance);
     this.mean = dists.reduce((a, b) => a + b, 0) / dists.length;
     this.std = Math.sqrt(dists.reduce((a, b) => a + (b - this.mean) ** 2, 0) / dists.length) || 1;
+    const masses = samples.map((s) => s.mass);
+    this.massMean = masses.reduce((a, b) => a + b, 0) / masses.length;
+    this.massStd = Math.sqrt(masses.reduce((a, b) => a + (b - this.massMean) ** 2, 0) / masses.length) || 1;
 
     const lrActor = 0.02;
     const lrCritic = 0.05;
@@ -156,7 +161,7 @@ export class DeepRLModel implements MLModel {
       const sigma = 0.05 + 0.3 * decay;
 
       for (const s of pool) {
-        const x = this.normalize(s.distance);
+        const x = this.normalize(s.distance, s.mass);
         const out = this.actor.forward(x);
         const { angleNorm, powerNorm } = this.decode(out);
 
@@ -192,7 +197,7 @@ export class DeepRLModel implements MLModel {
   }
 
   predict(x: Features): Prediction {
-    const out = this.actor.forward(this.normalize(x[0]));
+    const out = this.actor.forward(this.normalize(x[0], x[1]));
     const { angleNorm, powerNorm } = this.decode(out);
     return {
       angleDeg: MIN_A + angleNorm * (MAX_A - MIN_A),
