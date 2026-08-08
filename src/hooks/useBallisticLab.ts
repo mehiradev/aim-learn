@@ -11,11 +11,13 @@ import {
 } from "@/lib/ballistics/physics";
 import { BALLS, type BallId } from "@/lib/ballistics/projectiles";
 import { evaluateShot, generateTarget, INITIAL_TARGET, type Target } from "@/lib/ballistics/target";
+import type { Solution } from "@/lib/ml/solver";
 import { solve } from "@/lib/ml/solver";
 import { trainModel, type TrainedModel, type TrainingMetrics } from "@/lib/ml/training";
 import type { ModelId } from "@/lib/ml/registry";
 
 export type Mode = "manual" | "learning" | "auto";
+export type TargetMode = "random" | "manual";
 
 export interface ShotRecord {
   angleDeg: number;
@@ -48,6 +50,8 @@ export function useBallisticLab() {
   const [animationSpeed, setAnimationSpeed] = useState(1);
 
   const [target, setTarget] = useState<Target>(INITIAL_TARGET);
+  const [targetMode, setTargetMode] = useState<TargetMode>("random");
+  const [autoSolution, setAutoSolution] = useState<Solution | null>(null);
   const [activeShot, setActiveShot] = useState<ActiveShot | null>(null);
   const [lastRecord, setLastRecord] = useState<ShotRecord | null>(null);
   const [history, setHistory] = useState<ShotRecord[]>([]);
@@ -65,14 +69,20 @@ export function useBallisticLab() {
     setTarget(generateTarget());
   }, []);
 
+  const setTargetDistance = useCallback((distance: number) => {
+    setTarget((t) => ({ ...t, distance: Math.round(distance * 10) / 10 }));
+    setActiveShot(null);
+    setLastRecord(null);
+  }, []);
+
   const busy = useRef(false);
   const shotRef = useRef<ActiveShot | null>(null);
 
   const newTarget = useCallback(() => {
-    setTarget(generateTarget());
+    if (targetMode === "random") setTarget(generateTarget());
     setActiveShot(null);
     setLastRecord(null);
-  }, []);
+  }, [targetMode]);
 
   const fire = useCallback(
     (opts?: { ballId?: BallId; angleDeg?: number; power?: number; auto?: boolean }) => {
@@ -146,12 +156,13 @@ export function useBallisticLab() {
 
   const autoShoot = useCallback(() => {
     if (!trained) return;
-    const solution = solve(trained.model, target.distance, env);
+    const solution = solve(trained.model, target.distance, env, ballId);
+    setAutoSolution(solution);
     setBallId(solution.ballId);
     setAngle(Math.round(solution.angleDeg * 10) / 10);
     setEnv((e) => ({ ...e, power: Math.round(solution.power) }));
     fire({ ballId: solution.ballId, angleDeg: solution.angleDeg, power: solution.power, auto: true });
-  }, [env, fire, target.distance, trained]);
+  }, [ballId, env, fire, target.distance, trained]);
 
   const resetEnv = useCallback(() => {
     setEnv(DEFAULT_ENVIRONMENT);
@@ -165,9 +176,8 @@ export function useBallisticLab() {
       !!trained &&
       (trained.env.gravity !== env.gravity ||
         trained.env.airDrag !== env.airDrag ||
-        trained.env.dragCoefficient !== env.dragCoefficient ||
-        trained.mass !== BALLS[ballId].mass),
-    [ballId, env, trained],
+        trained.env.dragCoefficient !== env.dragCoefficient),
+    [env, trained],
   );
 
   const previewRange = useMemo(
@@ -191,7 +201,11 @@ export function useBallisticLab() {
     animationSpeed,
     setAnimationSpeed,
     target,
+    targetMode,
+    setTargetMode,
+    setTargetDistance,
     newTarget,
+    autoSolution,
     activeShot,
     lastRecord,
     history,
