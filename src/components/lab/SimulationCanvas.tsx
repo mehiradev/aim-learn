@@ -251,6 +251,14 @@ export function SimulationCanvas({
       ctx.stroke();
       ctx.restore();
 
+      // étiquette à gauche du canon : angle et puissance
+      const shownPower = shot ? shot.record.power : env.power;
+      ctx.font = "600 10px ui-monospace, monospace";
+      ctx.fillStyle = colors.primary;
+      ctx.fillText(`${drawAngle.toFixed(1)}°`, 2, pivotY - 26);
+      ctx.fillStyle = colors.muted;
+      ctx.fillText(`${(shownPower / 1000).toFixed(1)} kJ`, 2, pivotY - 14);
+
       // --- trajectoire + projectile ---
       if (shot) {
         if (startRef.current === null) startRef.current = now;
