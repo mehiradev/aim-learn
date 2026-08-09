@@ -294,6 +294,10 @@ export function useBallisticLab() {
     modelId,
     setModelId,
     trained,
+    trainedModels,
+    autoModelId,
+    setAutoModelId,
+    autoTrained,
     training,
     progress,
     liveMetrics,
@@ -306,10 +310,14 @@ export function useBallisticLab() {
     rlEpochs,
     setRlEpochs,
     startTraining,
+    resetTraining,
     autoShoot,
     previewRange,
     initialSpeed,
     resetEnv,
     modelStale,
+    logs,
+    refreshLogs,
   };
+
 }
