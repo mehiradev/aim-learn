@@ -59,13 +59,28 @@ export function useBallisticLab() {
   const [flying, setFlying] = useState(false);
 
   const [modelId, setModelId] = useState<ModelId>("deeprl");
-  const [trained, setTrained] = useState<TrainedModel | null>(null);
+  /** Modèles entraînés conservés par algorithme (le mode auto peut choisir). */
+  const [trainedModels, setTrainedModels] = useState<Partial<Record<ModelId, TrainedModel>>>({});
+  const [autoModelId, setAutoModelId] = useState<ModelId>("deeprl");
   const [training, setTraining] = useState(false);
   const [progress, setProgress] = useState(0);
   const [liveMetrics, setLiveMetrics] = useState<TrainingMetrics | null>(null);
   const [trialCount, setTrialCount] = useState(1200);
   const [hiddenLayers, setHiddenLayers] = useState<number[]>([...RL_HIDDEN_LAYERS]);
   const [rlEpochs, setRlEpochs] = useState(140);
+  const [logs, setLogs] = useState<ShotLogRow[]>([]);
+
+  const trained = trainedModels[modelId] ?? null;
+  const autoTrained = trainedModels[autoModelId] ?? null;
+
+  const refreshLogs = useCallback(async () => {
+    setLogs(await fetchShotLogs(50));
+  }, []);
+
+  useEffect(() => {
+    void refreshLogs();
+  }, [refreshLogs]);
+
 
   const setLayerNeurons = useCallback((index: number, neurons: number) => {
     setHiddenLayers((l) => l.map((n, i) => (i === index ? Math.max(1, Math.min(64, Math.round(neurons))) : n)));
