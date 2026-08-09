@@ -122,6 +122,8 @@ export function useBallisticLab() {
       const shotEnv: Environment = { ...env, power: p };
       const result = simulateShot({ angleDeg: a, mass: ball.mass }, shotEnv);
       const evaluation = evaluateShot(result.range, target);
+      const auto = opts?.auto ?? false;
+      const usedModelId = auto ? autoModelId : null;
       const record: ShotRecord = {
         angleDeg: a,
         ballId: b,
@@ -134,7 +136,11 @@ export function useBallisticLab() {
         error: evaluation.error,
         hit: evaluation.hit,
         flightTime: result.flightTime,
-        auto: opts?.auto ?? false,
+        auto,
+        mode,
+        modelId: usedModelId,
+        modelLabel: usedModelId ? (MODEL_OPTIONS.find((m) => m.id === usedModelId)?.label ?? usedModelId) : null,
+        at: new Date().toISOString(),
       };
       busy.current = true;
       setFlying(true);
@@ -143,7 +149,7 @@ export function useBallisticLab() {
       shotRef.current = shot;
       setActiveShot(shot);
     },
-    [angle, ballId, env, target],
+    [angle, autoModelId, ballId, env, mode, target],
   );
 
   const onImpact = useCallback(() => {
@@ -152,46 +158,81 @@ export function useBallisticLab() {
     setFlying(false);
     const shot = shotRef.current;
     if (shot) {
-      setLastRecord(shot.record);
-      setHistory((h) => [shot.record, ...h].slice(0, 20));
+      const r = shot.record;
+      setLastRecord(r);
+      setHistory((h) => [r, ...h].slice(0, 20));
+      void logShot({
+        mode: r.mode,
+        modelId: r.modelId,
+        modelLabel: r.modelLabel,
+        ballId: r.ballId,
+        mass: r.mass,
+        angleDeg: r.angleDeg,
+        power: r.power,
+        speed: r.speed,
+        gravity: r.gravity,
+        targetDistance: r.targetDistance,
+        impactX: r.impactX,
+        error: r.error,
+        hit: r.hit,
+        flightTime: r.flightTime,
+        auto: r.auto,
+      }).then(refreshLogs);
     }
-  }, []);
+  }, [refreshLogs]);
 
-  const startTraining = useCallback(async () => {
-    if (training) return;
-    setTraining(true);
-    setProgress(0);
+  /**
+   * Lance l'apprentissage.
+   * mode "reset" : repart d'un réseau neuf. mode "continue" : affine le modèle existant.
+   */
+  const startTraining = useCallback(
+    async (trainingMode: "reset" | "continue" = "reset") => {
+      if (training) return;
+      setTraining(true);
+      setProgress(0);
+      if (trainingMode === "reset") setLiveMetrics(null);
+      try {
+        const previous = trainingMode === "continue" ? (trainedModels[modelId] ?? null) : null;
+        const result = await trainModel({
+          modelId,
+          totalTrials: trialCount,
+          batches: 12,
+          env,
+          mass: BALLS[ballId].mass,
+          halfWidth: target.halfWidth,
+          rlConfig: { hiddenLayers, epochs: rlEpochs },
+          previous,
+          onProgress: ({ progress: p, metrics }) => {
+            setProgress(p);
+            setLiveMetrics(metrics);
+          },
+        });
+        setTrainedModels((m) => ({ ...m, [modelId]: result }));
+        setAutoModelId(modelId);
+        setLiveMetrics(result.metrics);
+      } finally {
+        setTraining(false);
+      }
+    },
+    [ballId, env, hiddenLayers, modelId, rlEpochs, target.halfWidth, trainedModels, trialCount, training],
+  );
+
+  const resetTraining = useCallback(() => {
+    setTrainedModels((m) => ({ ...m, [modelId]: undefined }));
     setLiveMetrics(null);
-    try {
-      const result = await trainModel({
-        modelId,
-        totalTrials: trialCount,
-        batches: 12,
-        env,
-        mass: BALLS[ballId].mass,
-        halfWidth: target.halfWidth,
-        rlConfig: { hiddenLayers, epochs: rlEpochs },
-        onProgress: ({ progress: p, metrics }) => {
-          setProgress(p);
-          setLiveMetrics(metrics);
-        },
-      });
-      setTrained(result);
-      setLiveMetrics(result.metrics);
-    } finally {
-      setTraining(false);
-    }
-  }, [ballId, env, hiddenLayers, modelId, rlEpochs, target.halfWidth, trialCount, training]);
+    setProgress(0);
+  }, [modelId]);
 
   const autoShoot = useCallback(() => {
-    if (!trained) return;
-    const solution = solve(trained.model, target.distance, env, ballId);
+    if (!autoTrained) return;
+    const solution = solve(autoTrained.model, target.distance, env, ballId);
     setAutoSolution(solution);
     setBallId(solution.ballId);
     setAngle(Math.round(solution.angleDeg * 10) / 10);
     setEnv((e) => ({ ...e, power: Math.round(solution.power) }));
     fire({ ballId: solution.ballId, angleDeg: solution.angleDeg, power: solution.power, auto: true });
-  }, [ballId, env, fire, target.distance, trained]);
+  }, [autoTrained, ballId, env, fire, target.distance]);
+
 
   const resetEnv = useCallback(() => {
     setEnv(DEFAULT_ENVIRONMENT);
