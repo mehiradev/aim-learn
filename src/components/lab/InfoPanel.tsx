@@ -1,8 +1,18 @@
-/** Tableau d'informations — état permanent de la simulation et du modèle. */
-import { BALLS } from "@/lib/ballistics/projectiles";
+/** Tableau d'informations — état permanent de la simulation, du modèle et traçabilité. */
+import { RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { BALLS, type BallId } from "@/lib/ballistics/projectiles";
+import { formatDateTime } from "@/lib/logging/shot-log";
+import { MODEL_OPTIONS } from "@/lib/ml/registry";
 import type { useBallisticLab } from "@/hooks/useBallisticLab";
 
 type Lab = ReturnType<typeof useBallisticLab>;
+
+const MODE_LABELS: Record<string, string> = {
+  manual: "Manuel",
+  learning: "Apprentissage",
+  auto: "Automatique",
+};
 
 function Stat({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "ok" | "bad" }) {
   const color = tone === "ok" ? "text-success" : tone === "bad" ? "text-destructive" : "text-foreground";
@@ -15,14 +25,22 @@ function Stat({ label, value, tone = "default" }: { label: string; value: string
 }
 
 export function InfoPanel({ lab }: { lab: Lab }) {
-  const { lastRecord, target, env, liveMetrics, trained } = lab;
+  const { lastRecord, target, env, liveMetrics, trained, autoTrained, logs } = lab;
   const metrics = trained?.metrics ?? liveMetrics;
+  const shownModel = lab.mode === "auto" ? autoTrained : trained;
+  const shownModelLabel = shownModel
+    ? (MODEL_OPTIONS.find((m) => m.id === shownModel.modelId)?.label ?? shownModel.modelId)
+    : "aucun";
 
   return (
     <div className="panel space-y-4 p-5">
       <h2 className="text-sm font-semibold tracking-wide text-foreground">Tableau d'informations</h2>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <Stat label="Mode en cours" value={MODE_LABELS[lab.mode] ?? lab.mode} />
+        <Stat label="Modèle choisi" value={shownModelLabel} />
+        <Stat label="Entraîné le" value={shownModel ? formatDateTime(shownModel.trainedAt) : "—"} />
+        <Stat label="Sessions d'apprentissage" value={shownModel ? `${shownModel.sessions}` : "—"} />
         <Stat label="Angle" value={`${lab.angle.toFixed(1)}°`} />
         <Stat label="Masse" value={`${BALLS[lab.ballId].mass} kg`} />
         <Stat label="Puissance" value={`${(env.power / 1000).toFixed(1)} kJ`} />
@@ -35,9 +53,12 @@ export function InfoPanel({ lab }: { lab: Lab }) {
           value={lastRecord ? `${lastRecord.error >= 0 ? "+" : ""}${lastRecord.error.toFixed(2)} m` : "—"}
           tone={lastRecord ? (lastRecord.hit ? "ok" : "bad") : "default"}
         />
+        <Stat label="Dernier tir" value={lastRecord ? formatDateTime(lastRecord.at) : "—"} />
         <Stat label="Essais d'apprentissage" value={metrics ? `${metrics.trials}` : "0"} />
         <Stat label="Précision modèle" value={metrics ? `${(metrics.hitRate * 100).toFixed(0)} %` : "—"} />
+        <Stat label="Tirs tracés en base" value={`${logs.length}`} />
       </div>
+
 
       {lastRecord && (
         <div
