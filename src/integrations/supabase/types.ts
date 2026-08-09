@@ -14,7 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      shot_logs: {
+        Row: {
+          angle_deg: number
+          auto: boolean
+          ball_id: string
+          created_at: string
+          error: number
+          flight_time: number
+          gravity: number
+          hit: boolean
+          id: string
+          impact_x: number
+          mass: number
+          mode: string
+          model_id: string | null
+          model_label: string | null
+          power: number
+          speed: number
+          target_distance: number
+        }
+        Insert: {
+          angle_deg: number
+          auto?: boolean
+          ball_id: string
+          created_at?: string
+          error: number
+          flight_time: number
+          gravity: number
+          hit: boolean
+          id?: string
+          impact_x: number
+          mass: number
+          mode: string
+          model_id?: string | null
+          model_label?: string | null
+          power: number
+          speed: number
+          target_distance: number
+        }
+        Update: {
+          angle_deg?: number
+          auto?: boolean
+          ball_id?: string
+          created_at?: string
+          error?: number
+          flight_time?: number
+          gravity?: number
+          hit?: boolean
+          id?: string
+          impact_x?: number
+          mass?: number
+          mode?: string
+          model_id?: string | null
+          model_label?: string | null
+          power?: number
+          speed?: number
+          target_distance?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
