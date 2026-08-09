@@ -1,8 +1,18 @@
-/** Tableau d'informations — état permanent de la simulation et du modèle. */
-import { BALLS } from "@/lib/ballistics/projectiles";
+/** Tableau d'informations — état permanent de la simulation, du modèle et traçabilité. */
+import { RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { BALLS, type BallId } from "@/lib/ballistics/projectiles";
+import { formatDateTime } from "@/lib/logging/shot-log";
+import { MODEL_OPTIONS } from "@/lib/ml/registry";
 import type { useBallisticLab } from "@/hooks/useBallisticLab";
 
 type Lab = ReturnType<typeof useBallisticLab>;
+
+const MODE_LABELS: Record<string, string> = {
+  manual: "Manuel",
+  learning: "Apprentissage",
+  auto: "Automatique",
+};
 
 function Stat({ label, value, tone = "default" }: { label: string; value: string; tone?: "default" | "ok" | "bad" }) {
   const color = tone === "ok" ? "text-success" : tone === "bad" ? "text-destructive" : "text-foreground";
@@ -15,14 +25,22 @@ function Stat({ label, value, tone = "default" }: { label: string; value: string
 }
 
 export function InfoPanel({ lab }: { lab: Lab }) {
-  const { lastRecord, target, env, liveMetrics, trained } = lab;
+  const { lastRecord, target, env, liveMetrics, trained, autoTrained, logs } = lab;
   const metrics = trained?.metrics ?? liveMetrics;
+  const shownModel = lab.mode === "auto" ? autoTrained : trained;
+  const shownModelLabel = shownModel
+    ? (MODEL_OPTIONS.find((m) => m.id === shownModel.modelId)?.label ?? shownModel.modelId)
+    : "aucun";
 
   return (
     <div className="panel space-y-4 p-5">
       <h2 className="text-sm font-semibold tracking-wide text-foreground">Tableau d'informations</h2>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <Stat label="Mode en cours" value={MODE_LABELS[lab.mode] ?? lab.mode} />
+        <Stat label="Modèle choisi" value={shownModelLabel} />
+        <Stat label="Entraîné le" value={shownModel ? formatDateTime(shownModel.trainedAt) : "—"} />
+        <Stat label="Sessions d'apprentissage" value={shownModel ? `${shownModel.sessions}` : "—"} />
         <Stat label="Angle" value={`${lab.angle.toFixed(1)}°`} />
         <Stat label="Masse" value={`${BALLS[lab.ballId].mass} kg`} />
         <Stat label="Puissance" value={`${(env.power / 1000).toFixed(1)} kJ`} />
@@ -35,9 +53,12 @@ export function InfoPanel({ lab }: { lab: Lab }) {
           value={lastRecord ? `${lastRecord.error >= 0 ? "+" : ""}${lastRecord.error.toFixed(2)} m` : "—"}
           tone={lastRecord ? (lastRecord.hit ? "ok" : "bad") : "default"}
         />
+        <Stat label="Dernier tir" value={lastRecord ? formatDateTime(lastRecord.at) : "—"} />
         <Stat label="Essais d'apprentissage" value={metrics ? `${metrics.trials}` : "0"} />
         <Stat label="Précision modèle" value={metrics ? `${(metrics.hitRate * 100).toFixed(0)} %` : "—"} />
+        <Stat label="Tirs tracés en base" value={`${logs.length}`} />
       </div>
+
 
       {lastRecord && (
         <div
@@ -64,27 +85,56 @@ export function InfoPanel({ lab }: { lab: Lab }) {
         </div>
       )}
 
-      {lab.history.length > 0 && (
-        <div className="space-y-1 border-t border-border pt-4">
-          <h3 className="label-xs">Derniers tirs</h3>
-          <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
-            {lab.history.map((r, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between rounded-md bg-secondary/40 px-3 py-1.5 font-mono text-xs"
-              >
-                <span className="text-muted-foreground">
-                  {r.angleDeg.toFixed(1)}° · {r.mass}kg · {r.auto ? "auto" : "man"}
-                </span>
-                <span className={r.hit ? "text-success" : "text-destructive"}>
-                  {r.error >= 0 ? "+" : ""}
-                  {r.error.toFixed(2)} m
-                </span>
-              </div>
-            ))}
-          </div>
+      <div className="space-y-2 border-t border-border pt-4">
+        <div className="flex items-center justify-between">
+          <h3 className="label-xs">Historique tracé (base de données)</h3>
+          <Button size="sm" variant="ghost" onClick={() => void lab.refreshLogs()}>
+            <RefreshCw className="size-4" /> Actualiser
+          </Button>
         </div>
-      )}
+        {logs.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Aucun tir enregistré pour le moment.</p>
+        ) : (
+          <div className="max-h-72 overflow-auto rounded-lg border border-border">
+            <table className="w-full min-w-[760px] border-collapse font-mono text-[11px]">
+              <thead className="sticky top-0 bg-secondary/80 text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-1.5 text-left font-medium">Date / heure</th>
+                  <th className="px-2 py-1.5 text-left font-medium">Mode</th>
+                  <th className="px-2 py-1.5 text-left font-medium">Modèle</th>
+                  <th className="px-2 py-1.5 text-left font-medium">Boulet</th>
+                  <th className="px-2 py-1.5 text-right font-medium">Angle</th>
+                  <th className="px-2 py-1.5 text-right font-medium">Puissance</th>
+                  <th className="px-2 py-1.5 text-right font-medium">Cible</th>
+                  <th className="px-2 py-1.5 text-right font-medium">Impact</th>
+                  <th className="px-2 py-1.5 text-right font-medium">Écart</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((r) => (
+                  <tr key={r.id} className="border-t border-border/60">
+                    <td className="px-2 py-1.5 text-muted-foreground">{formatDateTime(r.createdAt)}</td>
+                    <td className="px-2 py-1.5 text-muted-foreground">{MODE_LABELS[r.mode] ?? r.mode}</td>
+                    <td className="px-2 py-1.5 text-muted-foreground">{r.modelLabel ?? "—"}</td>
+                    <td className="px-2 py-1.5 text-muted-foreground">
+                      {BALLS[r.ballId as BallId]?.label.replace("Boulet ", "") ?? r.ballId} · {r.mass} kg
+                    </td>
+                    <td className="px-2 py-1.5 text-right">{r.angleDeg.toFixed(1)}°</td>
+                    <td className="px-2 py-1.5 text-right">{(r.power / 1000).toFixed(1)} kJ</td>
+                    <td className="px-2 py-1.5 text-right">{r.targetDistance.toFixed(1)} m</td>
+                    <td className="px-2 py-1.5 text-right">{r.impactX.toFixed(1)} m</td>
+                    <td className={`px-2 py-1.5 text-right ${r.hit ? "text-success" : "text-destructive"}`}>
+                      {r.error >= 0 ? "+" : ""}
+                      {r.error.toFixed(2)} m
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }

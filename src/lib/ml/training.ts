@@ -34,6 +34,11 @@ export interface TrainedModel {
   env: Environment;
   mass: number;
   history: { trials: number; distanceMae: number }[];
+  /** Date ISO de fin du dernier entraînement. */
+  trainedAt: string;
+  /** Nombre de sessions d'apprentissage cumulées sur ce modèle. */
+  sessions: number;
+
 }
 
 export function clampAngle(a: number): number {
@@ -113,6 +118,8 @@ export function evaluate(
 /**
  * Entraîne un modèle par lots successifs afin d'afficher la progression.
  * onProgress est appelé après chaque lot.
+ * Si `previous` est fourni, l'apprentissage se poursuit sur le même modèle
+ * (les poids et le jeu d'essais existants sont conservés et affinés).
  */
 export async function trainModel(options: {
   modelId: ModelId;
@@ -122,20 +129,25 @@ export async function trainModel(options: {
   mass: number;
   halfWidth: number;
   rlConfig?: RlConfig;
+  /** Modèle déjà entraîné à affiner (mode « continuer l'apprentissage »). */
+  previous?: TrainedModel | null;
   onProgress?: (info: { progress: number; trials: number; metrics: TrainingMetrics }) => void;
 }): Promise<TrainedModel> {
-  const { modelId, totalTrials, batches, env, mass, halfWidth, rlConfig, onProgress } = options;
-  const dataset: Sample[] = [];
-  const history: { trials: number; distanceMae: number }[] = [];
-  let model = createModel(modelId, env, mass, rlConfig);
-  let metrics: TrainingMetrics = {
-    trials: 0,
-    distanceMae: 0,
-    r2: 0,
-    hitRate: 0,
-    avgPower: 0,
-    avgAngle: 0,
-  };
+  const { modelId, totalTrials, batches, env, mass, halfWidth, rlConfig, previous, onProgress } = options;
+  const resume = !!previous && previous.modelId === modelId;
+  const dataset: Sample[] = resume ? [...previous!.dataset] : [];
+  const history: { trials: number; distanceMae: number }[] = resume ? [...previous!.history] : [];
+  let model = resume ? previous!.model : createModel(modelId, env, mass, rlConfig);
+  let metrics: TrainingMetrics = resume
+    ? previous!.metrics
+    : {
+        trials: 0,
+        distanceMae: 0,
+        r2: 0,
+        hitRate: 0,
+        avgPower: 0,
+        avgAngle: 0,
+      };
   const perBatch = Math.max(10, Math.round(totalTrials / batches));
 
   for (let b = 0; b < batches; b++) {
@@ -143,7 +155,8 @@ export async function trainModel(options: {
     const split = Math.floor(dataset.length * 0.8);
     const train = dataset.slice(0, split);
     const validation = dataset.slice(split);
-    model = createModel(modelId, env, mass, rlConfig);
+    // En reprise, on garde les poids appris ; sinon on repart d'un modèle neuf.
+    if (!resume) model = createModel(modelId, env, mass, rlConfig);
     model.fit(train);
     metrics = { ...evaluate(model, validation, env, mass, halfWidth), trials: dataset.length };
     history.push({ trials: dataset.length, distanceMae: metrics.distanceMae });
@@ -152,5 +165,16 @@ export async function trainModel(options: {
     await new Promise((r) => setTimeout(r, 0));
   }
 
-  return { model, modelId, metrics, dataset, env, mass, history };
+  return {
+    model,
+    modelId,
+    metrics,
+    dataset,
+    env,
+    mass,
+    history,
+    trainedAt: new Date().toISOString(),
+    sessions: (resume ? previous!.sessions : 0) + 1,
+  };
 }
+

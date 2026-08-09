@@ -204,9 +204,25 @@ export function ControlPanel({ lab }: { lab: Lab }) {
           </Row>
 
 
-          <Button className="w-full" onClick={lab.startTraining} disabled={lab.training}>
-            <GraduationCap /> {lab.training ? "Apprentissage en cours…" : "Lancer l'apprentissage"}
-          </Button>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button className="w-full" onClick={() => void lab.startTraining("reset")} disabled={lab.training}>
+              <GraduationCap /> {lab.training ? "Apprentissage…" : "Réinitialiser & apprendre"}
+            </Button>
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={() => void lab.startTraining("continue")}
+              disabled={lab.training || !trained}
+            >
+              <Play /> Continuer l'apprentissage
+            </Button>
+          </div>
+
+          {trained && !lab.training && (
+            <Button variant="ghost" size="sm" className="w-full" onClick={lab.resetTraining}>
+              <Trash2 /> Oublier ce modèle
+            </Button>
+          )}
 
           {(lab.training || lab.liveMetrics) && (
             <div className="space-y-2">
@@ -226,10 +242,12 @@ export function ControlPanel({ lab }: { lab: Lab }) {
 
           {trained && (
             <p className="rounded-lg border border-success/40 bg-success/10 p-3 text-xs text-foreground">
-              Modèle « {MODEL_OPTIONS.find((m) => m.id === trained.modelId)?.label} » entraîné et gardé en mémoire.
-              Le mode automatique est débloqué.
+              Modèle « {MODEL_OPTIONS.find((m) => m.id === trained.modelId)?.label} » entraîné et gardé en mémoire (
+              {trained.sessions} session{trained.sessions > 1 ? "s" : ""}, {trained.dataset.length} essais cumulés). Le
+              mode automatique est débloqué.
             </p>
           )}
+
         </div>
       )}
 
@@ -250,9 +268,37 @@ export function ControlPanel({ lab }: { lab: Lab }) {
             </div>
           </div>
 
-          {!trained ? (
+          <div className="space-y-2">
+            <Label className="label-xs">Modèle utilisé</Label>
+            <div className="grid gap-2">
+              {MODEL_OPTIONS.map((m) => {
+                const ready = !!lab.trainedModels[m.id as ModelId];
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => lab.setAutoModelId(m.id as ModelId)}
+                    disabled={!ready}
+                    className={`rounded-lg border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                      lab.autoModelId === m.id
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-secondary/60 hover:border-primary/50"
+                    }`}
+                  >
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-sm font-semibold text-foreground">{m.label}</span>
+                      <span className="font-mono text-[11px] text-muted-foreground">
+                        {ready ? "entraîné" : "non entraîné"}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {!lab.autoTrained ? (
             <p className="rounded-lg border border-primary/40 bg-primary/10 p-3 text-sm text-foreground">
-              Aucun modèle entraîné. Lancez d'abord un apprentissage.
+              Ce modèle n'est pas encore entraîné. Lancez d'abord un apprentissage.
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
@@ -260,6 +306,7 @@ export function ControlPanel({ lab }: { lab: Lab }) {
               puissance du canon.
             </p>
           )}
+
 
           <div className="space-y-2">
             <Label className="label-xs">Type de boulet</Label>
@@ -282,18 +329,19 @@ export function ControlPanel({ lab }: { lab: Lab }) {
           </div>
 
           <div className="flex gap-2">
-            <Button className="flex-1" onClick={lab.autoShoot} disabled={!trained || lab.flying}>
+            <Button className="flex-1" onClick={lab.autoShoot} disabled={!lab.autoTrained || lab.flying}>
               <Sparkles /> Tir automatique
             </Button>
             <Button variant="secondary" onClick={lab.newTarget} disabled={lab.flying}>
               <RefreshCw /> Nouvelle cible
             </Button>
           </div>
-          {!trained && (
+          {!lab.autoTrained && (
             <Button variant="outline" className="w-full" onClick={() => lab.setMode("learning")}>
               <Play /> Aller à l'apprentissage
             </Button>
           )}
+
         </div>
       )}
 
