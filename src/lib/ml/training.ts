@@ -34,6 +34,11 @@ export interface TrainedModel {
   env: Environment;
   mass: number;
   history: { trials: number; distanceMae: number }[];
+  /** Date ISO de fin du dernier entraînement. */
+  trainedAt: string;
+  /** Nombre de sessions d'apprentissage cumulées sur ce modèle. */
+  sessions: number;
+
 }
 
 export function clampAngle(a: number): number {
