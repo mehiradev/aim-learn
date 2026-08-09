@@ -268,9 +268,37 @@ export function ControlPanel({ lab }: { lab: Lab }) {
             </div>
           </div>
 
-          {!trained ? (
+          <div className="space-y-2">
+            <Label className="label-xs">Modèle utilisé</Label>
+            <div className="grid gap-2">
+              {MODEL_OPTIONS.map((m) => {
+                const ready = !!lab.trainedModels[m.id as ModelId];
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => lab.setAutoModelId(m.id as ModelId)}
+                    disabled={!ready}
+                    className={`rounded-lg border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                      lab.autoModelId === m.id
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-secondary/60 hover:border-primary/50"
+                    }`}
+                  >
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="text-sm font-semibold text-foreground">{m.label}</span>
+                      <span className="font-mono text-[11px] text-muted-foreground">
+                        {ready ? "entraîné" : "non entraîné"}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {!lab.autoTrained ? (
             <p className="rounded-lg border border-primary/40 bg-primary/10 p-3 text-sm text-foreground">
-              Aucun modèle entraîné. Lancez d'abord un apprentissage.
+              Ce modèle n'est pas encore entraîné. Lancez d'abord un apprentissage.
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
@@ -278,6 +306,7 @@ export function ControlPanel({ lab }: { lab: Lab }) {
               puissance du canon.
             </p>
           )}
+
 
           <div className="space-y-2">
             <Label className="label-xs">Type de boulet</Label>
