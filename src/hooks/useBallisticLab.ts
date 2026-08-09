@@ -14,8 +14,9 @@ import { evaluateShot, generateTarget, INITIAL_TARGET, type Target } from "@/lib
 import type { Solution } from "@/lib/ml/solver";
 import { solve } from "@/lib/ml/solver";
 import { trainModel, type TrainedModel, type TrainingMetrics } from "@/lib/ml/training";
-import type { ModelId } from "@/lib/ml/registry";
+import { MODEL_OPTIONS, type ModelId } from "@/lib/ml/registry";
 import { RL_HIDDEN_LAYERS } from "@/lib/ml/deep-rl";
+import { fetchShotLogs, logShot, type ShotLogRow } from "@/lib/logging/shot-log";
 
 export type Mode = "manual" | "learning" | "auto";
 export type TargetMode = "random" | "manual";
@@ -33,7 +34,15 @@ export interface ShotRecord {
   hit: boolean;
   flightTime: number;
   auto: boolean;
+  /** Mode de jeu au moment du tir */
+  mode: string;
+  /** Modèle d'IA utilisé (mode automatique) */
+  modelId: ModelId | null;
+  modelLabel: string | null;
+  /** Date/heure ISO du tir */
+  at: string;
 }
+
 
 export interface ActiveShot {
   result: ShotResult;
