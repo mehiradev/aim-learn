@@ -204,9 +204,25 @@ export function ControlPanel({ lab }: { lab: Lab }) {
           </Row>
 
 
-          <Button className="w-full" onClick={lab.startTraining} disabled={lab.training}>
-            <GraduationCap /> {lab.training ? "Apprentissage en cours…" : "Lancer l'apprentissage"}
-          </Button>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button className="w-full" onClick={() => void lab.startTraining("reset")} disabled={lab.training}>
+              <GraduationCap /> {lab.training ? "Apprentissage…" : "Réinitialiser & apprendre"}
+            </Button>
+            <Button
+              variant="secondary"
+              className="w-full"
+              onClick={() => void lab.startTraining("continue")}
+              disabled={lab.training || !trained}
+            >
+              <Play /> Continuer l'apprentissage
+            </Button>
+          </div>
+
+          {trained && !lab.training && (
+            <Button variant="ghost" size="sm" className="w-full" onClick={lab.resetTraining}>
+              <Trash2 /> Oublier ce modèle
+            </Button>
+          )}
 
           {(lab.training || lab.liveMetrics) && (
             <div className="space-y-2">
@@ -226,10 +242,12 @@ export function ControlPanel({ lab }: { lab: Lab }) {
 
           {trained && (
             <p className="rounded-lg border border-success/40 bg-success/10 p-3 text-xs text-foreground">
-              Modèle « {MODEL_OPTIONS.find((m) => m.id === trained.modelId)?.label} » entraîné et gardé en mémoire.
-              Le mode automatique est débloqué.
+              Modèle « {MODEL_OPTIONS.find((m) => m.id === trained.modelId)?.label} » entraîné et gardé en mémoire (
+              {trained.sessions} session{trained.sessions > 1 ? "s" : ""}, {trained.dataset.length} essais cumulés). Le
+              mode automatique est débloqué.
             </p>
           )}
+
         </div>
       )}
 
