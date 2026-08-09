@@ -329,18 +329,19 @@ export function ControlPanel({ lab }: { lab: Lab }) {
           </div>
 
           <div className="flex gap-2">
-            <Button className="flex-1" onClick={lab.autoShoot} disabled={!trained || lab.flying}>
+            <Button className="flex-1" onClick={lab.autoShoot} disabled={!lab.autoTrained || lab.flying}>
               <Sparkles /> Tir automatique
             </Button>
             <Button variant="secondary" onClick={lab.newTarget} disabled={lab.flying}>
               <RefreshCw /> Nouvelle cible
             </Button>
           </div>
-          {!trained && (
+          {!lab.autoTrained && (
             <Button variant="outline" className="w-full" onClick={() => lab.setMode("learning")}>
               <Play /> Aller à l'apprentissage
             </Button>
           )}
+
         </div>
       )}
 
