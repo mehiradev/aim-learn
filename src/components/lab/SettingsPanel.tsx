@@ -1,11 +1,14 @@
 /** Panneau des paramètres d'environnement — placé sous le simulateur. */
+import { useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { MAX_POWER, MIN_POWER } from "@/lib/ballistics/physics";
 import { TARGET_MAX_DISTANCE, TARGET_MIN_DISTANCE } from "@/lib/ballistics/target";
+import { getApiKey } from "@/lib/api/ml.functions";
 import type { useBallisticLab } from "@/hooks/useBallisticLab";
 
 type Lab = ReturnType<typeof useBallisticLab>;
@@ -24,6 +27,25 @@ function Row({ label, value, children }: { label: string; value: string; childre
 
 export function SettingsPanel({ lab }: { lab: Lab }) {
   const { env } = lab;
+  const [apiPassword, setApiPassword] = useState("");
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const [creatingApiKey, setCreatingApiKey] = useState(false);
+
+  const handleCreateApiKey = async () => {
+    setApiError(null);
+    setApiKey(null);
+    setCreatingApiKey(true);
+
+    try {
+      const result = await getApiKey({ data: { password: apiPassword } });
+      setApiKey(result.apiKey);
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "Erreur inconnue");
+    } finally {
+      setCreatingApiKey(false);
+    }
+  };
 
   return (
     <div className="panel space-y-5 p-5">
@@ -109,6 +131,51 @@ export function SettingsPanel({ lab }: { lab: Lab }) {
       <div className="flex items-center justify-between">
         <Label className="label-xs">Frottements de l'air</Label>
         <Switch checked={env.airDrag} onCheckedChange={(c) => lab.setEnv({ ...env, airDrag: c })} />
+      </div>
+
+      <div className="rounded-xl border border-border bg-secondary/40 p-4">
+        <div className="mb-3 flex items-center justify-between gap-4">
+          <div>
+            <div className="label-xs">Créer une clé API</div>
+            <p className="text-xs text-muted-foreground">
+              Saisissez le mot de passe secret pour générer la clé API.
+            </p>
+          </div>
+          <a
+            href="/API-prompt.md"
+            download
+            className="text-sm font-medium text-primary underline-offset-2 hover:underline"
+          >
+            Télécharger API-prompt.md
+          </a>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+          <Input
+            type="password"
+            value={apiPassword}
+            onChange={(event) => setApiPassword(event.target.value)}
+            placeholder="Mot de passe API"
+            aria-label="Mot de passe API"
+          />
+          <Button
+            type="button"
+            onClick={handleCreateApiKey}
+            disabled={creatingApiKey || apiPassword.length === 0}
+          >
+            Générer
+          </Button>
+        </div>
+        {apiKey && (
+          <div className="mt-3 rounded-lg border border-success/40 bg-success/10 p-3 text-sm text-success">
+            <div className="font-semibold">Clé API générée</div>
+            <div className="mt-1 font-mono break-all">{apiKey}</div>
+          </div>
+        )}
+        {apiError && (
+          <div className="mt-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+            {apiError}
+          </div>
+        )}
       </div>
     </div>
   );

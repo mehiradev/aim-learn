@@ -1,7 +1,10 @@
 /** Informations de build — version applicative et date de compilation. */
 declare const __BUILD_DATE__: string;
+declare const __APP_VERSION__: string;
 
-export const APP_VERSION = "1.3.0";
+/** Version de l'application injectée par Vite au build. */
+export const APP_VERSION: string =
+  typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : "0.0.0";
 
 /** Date/heure de la compilation, injectée par Vite au build. */
 export const BUILD_DATE: string =

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import "@/lib/api/ml.functions";
 import { SimulationCanvas } from "@/components/lab/SimulationCanvas";
 import { ControlPanel } from "@/components/lab/ControlPanel";
 import { SettingsPanel } from "@/components/lab/SettingsPanel";

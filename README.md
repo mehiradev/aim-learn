@@ -2,6 +2,7 @@
 
 # Projet : Ballistic Lab
 
+> Build : v1.3.1 · 10/08/2026 01:01 UTC
 
 
 ## Présentation
@@ -272,9 +273,70 @@ Le système doit afficher :
 
 Le modèle entraîné peut être sauvegardé en mémoire pour être réutilisé.
 
-
-
 ---
+
+## API ML
+
+L'application expose une API de commandes ML via des fonctions serveur TanStack Start.
+
+### Authentification
+
+- La clé API est générée côté serveur à partir d'un mot de passe secret.
+- Les endpoints protégés nécessitent l'en-tête HTTP : `Authorization: Bearer <apiKey>`.
+
+### Commandes ML disponibles
+
+- `getApiKey` : génère la clé API à partir du mot de passe.
+- `getApiCommands` : liste toutes les commandes disponibles.
+- `configureNetworkFn` : configure le réseau de neurones (nombre de neurones par couche, epochs).
+- `trainModelFn` : lance l'entraînement du modèle.
+- `predictFn` : prédit un angle et une puissance pour une distance et une masse données.
+- `simulateShotFn` : simule un tir avec un angle, une masse et un environnement spécifiques.
+- `getState` : récupère l'état ML courant.
+- `resetState` : réinitialise l'état ML.
+- `executeMlCommandFn` : exécute une commande générique via son nom et sa charge utile.
+- `getPromptApiFn` : fournit un prompt API destiné à une IA ou un humain.
+
+### Exemple d'utilisation
+
+1. Générer la clé API :
+
+```js
+await getApiKey({ data: { password: 'VOTRE_MOT_DE_PASSE_SECRET' } });
+```
+
+2. Configurer le réseau :
+
+```js
+await configureNetworkFn({
+  data: {
+    hiddenLayers: [32, 16],
+    epochs: 200,
+  },
+});
+```
+
+3. Lancer l'entraînement :
+
+```js
+await trainModelFn({
+  data: {
+    modelId: 'deeprl',
+    totalTrials: 200,
+    batches: 4,
+    env: { gravity: 9.81, power: 20000, airDrag: false, dragCoefficient: 0.02 },
+    mass: 1.2,
+    halfWidth: 5,
+  },
+  headers: { Authorization: `Bearer ${apiKey}` },
+});
+```
+
+4. Récupérer la documentation de l'API :
+
+```js
+await getPromptApiFn();
+```
 
 
 
