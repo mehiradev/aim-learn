@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { MAX_POWER, MIN_POWER } from "@/lib/ballistics/physics";
 import { TARGET_MAX_DISTANCE, TARGET_MIN_DISTANCE } from "@/lib/ballistics/target";
-import { getApiKey } from "@/lib/api/ml.functions";
+import { getApiKey, listApiKeysFn, revokeApiKeyFn } from "@/lib/api/ml.functions";
 import type { useBallisticLab } from "@/hooks/useBallisticLab";
 
 type Lab = ReturnType<typeof useBallisticLab>;
@@ -31,6 +31,10 @@ export function SettingsPanel({ lab }: { lab: Lab }) {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [creatingApiKey, setCreatingApiKey] = useState(false);
+  const [apiKeys, setApiKeys] = useState<{ key: string; createdAt: string; revoked: boolean }[]>([]);
+  const [apiKeyListError, setApiKeyListError] = useState<string | null>(null);
+  const [loadingApiKeys, setLoadingApiKeys] = useState(false);
+  const [visibleApiKey, setVisibleApiKey] = useState<string | null>(null);
 
   const handleCreateApiKey = async () => {
     setApiError(null);
@@ -40,10 +44,39 @@ export function SettingsPanel({ lab }: { lab: Lab }) {
     try {
       const result = await getApiKey({ data: { password: apiPassword } });
       setApiKey(result.apiKey);
+      void refreshApiKeys();
     } catch (error) {
       setApiError(error instanceof Error ? error.message : "Erreur inconnue");
     } finally {
       setCreatingApiKey(false);
+    }
+  };
+
+  const refreshApiKeys = async () => {
+    setApiKeyListError(null);
+    setLoadingApiKeys(true);
+    try {
+      if (!apiPassword) {
+        throw new Error('Saisissez le mot de passe secret pour charger les clés.');
+      }
+      const result = await listApiKeysFn({ data: { password: apiPassword } });
+      setApiKeys(result.apiKeys);
+    } catch (error) {
+      setApiKeyListError(error instanceof Error ? error.message : "Erreur inconnue");
+      setApiKeys([]);
+    } finally {
+      setLoadingApiKeys(false);
+    }
+  };
+
+  const handleRevokeApiKey = async (key: string) => {
+    setApiKeyListError(null);
+    try {
+      await revokeApiKeyFn({ data: { key, password: apiPassword } });
+      if (visibleApiKey === key) setVisibleApiKey(null);
+      void refreshApiKeys();
+    } catch (error) {
+      setApiKeyListError(error instanceof Error ? error.message : "Erreur inconnue");
     }
   };
 
@@ -176,6 +209,85 @@ export function SettingsPanel({ lab }: { lab: Lab }) {
             {apiError}
           </div>
         )}
+
+        <div className="mt-6 rounded-xl border border-border bg-secondary/40 p-4">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <div>
+              <div className="label-xs">Clés API existantes</div>
+              <p className="text-xs text-muted-foreground">
+                La liste est affichée en partie masquée. Vous pouvez révoquer une clé si nécessaire.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={refreshApiKeys}
+              disabled={loadingApiKeys || apiPassword.length === 0}
+            >
+              Actualiser
+            </Button>
+          </div>
+          {apiKeyListError && (
+            <div className="mb-3 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              {apiKeyListError}
+            </div>
+          )}
+          {apiKeys.length === 0 ? (
+            <p className="text-xs text-muted-foreground">
+              Aucune clé API chargée. Générer une clé ou saisir le mot de passe pour afficher la liste.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {apiKeys.map((record) => {
+                const visible = visibleApiKey === record.key;
+                const maskedKey = record.revoked
+                  ? '🔒 clé révoquée'
+                  : `${record.key.slice(0, 6)}…${record.key.slice(-6)}`;
+                return (
+                  <div key={record.key} className="rounded-lg border border-border bg-background/80 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="font-mono text-sm break-all">
+                        {visible ? record.key : maskedKey}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {!record.revoked && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setVisibleApiKey(visible ? null : record.key)}
+                          >
+                            {visible ? 'Masquer' : 'Afficher'}
+                          </Button>
+                        )}
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleRevokeApiKey(record.key)}
+                          disabled={record.revoked}
+                        >
+                          Révoquer
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                      <span>Créée le {new Date(record.createdAt).toLocaleString('fr-FR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}</span>
+                      {record.revoked && <span className="text-destructive">Révoquée</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

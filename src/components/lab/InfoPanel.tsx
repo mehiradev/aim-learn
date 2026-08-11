@@ -1,4 +1,5 @@
 /** Tableau d'informations — état permanent de la simulation, du modèle et traçabilité. */
+import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BALLS, type BallId } from "@/lib/ballistics/projectiles";
@@ -26,6 +27,8 @@ function Stat({ label, value, tone = "default" }: { label: string; value: string
 
 export function InfoPanel({ lab }: { lab: Lab }) {
   const { lastRecord, target, env, liveMetrics, trained, autoTrained, logs } = lab;
+  const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
+  const selectedLog = logs.find((log) => log.id === selectedLogId) ?? null;
   const metrics = trained?.metrics ?? liveMetrics;
   const shownModel = lab.mode === "auto" ? autoTrained : trained;
   const shownModelLabel = shownModel
@@ -95,8 +98,24 @@ export function InfoPanel({ lab }: { lab: Lab }) {
         {logs.length === 0 ? (
           <p className="text-xs text-muted-foreground">Aucun tir enregistré pour le moment.</p>
         ) : (
-          <div className="max-h-72 overflow-auto rounded-lg border border-border">
-            <table className="w-full min-w-[760px] border-collapse font-mono text-[11px]">
+          <>
+            {selectedLog && (
+              <div className="mb-3 rounded-lg border border-primary/40 bg-primary/10 p-3 text-sm">
+                <div className="font-semibold">Sélection : {formatDateTime(selectedLog.createdAt)}</div>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <div>Mode : {MODE_LABELS[selectedLog.mode] ?? selectedLog.mode}</div>
+                  <div>Modèle : {selectedLog.modelLabel ?? '—'}</div>
+                  <div>Angle : {selectedLog.angleDeg.toFixed(1)}°</div>
+                  <div>Puissance : {(selectedLog.power / 1000).toFixed(1)} kJ</div>
+                  <div>Cible : {selectedLog.targetDistance.toFixed(1)} m</div>
+                  <div>Impact : {selectedLog.impactX.toFixed(1)} m</div>
+                  <div>Écart : {selectedLog.error.toFixed(2)} m</div>
+                  <div>{selectedLog.hit ? 'Tir réussi' : 'Tir manqué'}</div>
+                </div>
+              </div>
+            )}
+            <div className="max-h-72 overflow-auto rounded-lg border border-border">
+              <table className="w-full min-w-[760px] border-collapse font-mono text-[11px]">
               <thead className="sticky top-0 bg-secondary/80 text-muted-foreground">
                 <tr>
                   <th className="px-2 py-1.5 text-left font-medium">Date / heure</th>
@@ -111,27 +130,37 @@ export function InfoPanel({ lab }: { lab: Lab }) {
                 </tr>
               </thead>
               <tbody>
-                {logs.map((r) => (
-                  <tr key={r.id} className="border-t border-border/60">
-                    <td className="px-2 py-1.5 text-muted-foreground">{formatDateTime(r.createdAt)}</td>
-                    <td className="px-2 py-1.5 text-muted-foreground">{MODE_LABELS[r.mode] ?? r.mode}</td>
-                    <td className="px-2 py-1.5 text-muted-foreground">{r.modelLabel ?? "—"}</td>
-                    <td className="px-2 py-1.5 text-muted-foreground">
-                      {BALLS[r.ballId as BallId]?.label.replace("Boulet ", "") ?? r.ballId} · {r.mass} kg
-                    </td>
-                    <td className="px-2 py-1.5 text-right">{r.angleDeg.toFixed(1)}°</td>
-                    <td className="px-2 py-1.5 text-right">{(r.power / 1000).toFixed(1)} kJ</td>
-                    <td className="px-2 py-1.5 text-right">{r.targetDistance.toFixed(1)} m</td>
-                    <td className="px-2 py-1.5 text-right">{r.impactX.toFixed(1)} m</td>
-                    <td className={`px-2 py-1.5 text-right ${r.hit ? "text-success" : "text-destructive"}`}>
-                      {r.error >= 0 ? "+" : ""}
-                      {r.error.toFixed(2)} m
-                    </td>
-                  </tr>
-                ))}
+                {logs.map((r) => {
+                  const active = selectedLogId === r.id;
+                  return (
+                    <tr
+                      key={r.id}
+                      className={`border-t border-border/60 transition-colors hover:bg-muted/40 hover:cursor-pointer ${
+                        active ? 'bg-primary/10' : ''
+                      }`}
+                      onClick={() => setSelectedLogId(r.id)}
+                    >
+                      <td className="px-2 py-1.5 text-muted-foreground">{formatDateTime(r.createdAt)}</td>
+                      <td className="px-2 py-1.5 text-muted-foreground">{MODE_LABELS[r.mode] ?? r.mode}</td>
+                      <td className="px-2 py-1.5 text-muted-foreground">{r.modelLabel ?? "—"}</td>
+                      <td className="px-2 py-1.5 text-muted-foreground">
+                        {BALLS[r.ballId as BallId]?.label.replace("Boulet ", "") ?? r.ballId} · {r.mass} kg
+                      </td>
+                      <td className="px-2 py-1.5 text-right">{r.angleDeg.toFixed(1)}°</td>
+                      <td className="px-2 py-1.5 text-right">{(r.power / 1000).toFixed(1)} kJ</td>
+                      <td className="px-2 py-1.5 text-right">{r.targetDistance.toFixed(1)} m</td>
+                      <td className="px-2 py-1.5 text-right">{r.impactX.toFixed(1)} m</td>
+                      <td className={`px-2 py-1.5 text-right ${r.hit ? "text-success" : "text-destructive"}`}>
+                        {r.error >= 0 ? "+" : ""}
+                        {r.error.toFixed(2)} m
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
+          </>
         )}
       </div>
 

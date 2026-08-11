@@ -4,30 +4,64 @@ import { simulateShot, type Environment } from '../ballistics/physics';
 import type { ModelId, RlConfig } from '../ml/registry';
 import { trainModel, type TrainedModel } from '../ml/training';
 import type { Prediction } from '../ml/types';
+import { fetchShotLogs } from '../logging/shot-log';
 
 export const API_PASSWORD = 'Ilian2008';
 
-export function sha256(text: string): string {
-  return crypto.createHash('sha256').update(text).digest('hex');
+export interface ApiKeyRecord {
+  key: string;
+  createdAt: string;
+  revoked: boolean;
 }
 
-export const API_KEY_HASH = sha256(API_PASSWORD);
+const apiKeyStore: ApiKeyRecord[] = [];
+
+function buildApiKey(): string {
+  return crypto.randomBytes(24).toString('hex');
+}
 
 export function generateApiKey(password: string): string {
   if (password !== API_PASSWORD) {
     throw new Error('Unauthorized: invalid password');
   }
 
-  return API_KEY_HASH;
+  const apiKey = buildApiKey();
+  apiKeyStore.push({ key: apiKey, createdAt: new Date().toISOString(), revoked: false });
+  return apiKey;
 }
 
 export function requireApiKey(): void {
   const authHeader = getRequestHeader('Authorization') ?? getRequestHeader('authorization');
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
 
-  if (!token || token !== API_KEY_HASH) {
-    throw new Error('Unauthorized: API key missing or invalid');
+  const keyRecord = token ? apiKeyStore.find((record) => record.key === token) : undefined;
+  if (!token || !keyRecord || keyRecord.revoked) {
+    throw new Error('Unauthorized: API key missing, invalid or revoked');
   }
+}
+
+export function listApiKeys(password: string): ApiKeyRecord[] {
+  if (password !== API_PASSWORD) {
+    throw new Error('Unauthorized: invalid password');
+  }
+  return apiKeyStore.map((record) => ({ ...record }));
+}
+
+export function revokeApiKey(key: string, password: string): ApiKeyRecord {
+  if (password !== API_PASSWORD) {
+    throw new Error('Unauthorized: invalid password');
+  }
+
+  const record = apiKeyStore.find((item) => item.key === key);
+  if (!record) {
+    throw new Error('NotFound: api key not found');
+  }
+  record.revoked = true;
+  return record;
+}
+
+export function getShotLogs(limit = 50) {
+  return fetchShotLogs(limit);
 }
 
 export interface TrainModelOptions {

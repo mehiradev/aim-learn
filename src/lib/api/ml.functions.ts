@@ -13,6 +13,9 @@ import {
   trainModelApi,
   predictApi,
   simulateShotApi,
+  listApiKeys,
+  revokeApiKey,
+  getShotLogs,
   sha256,
 } from './ml.server';
 
@@ -25,6 +28,28 @@ export const getApiKey = createServerFn({ method: 'POST' })
   )
   .handler(async ({ data }) => {
     return { apiKey: generateApiKey(data.password) };
+  });
+
+export const listApiKeysFn = createServerFn({ method: 'POST' })
+  .validator(
+    z.object({ password: z.string().min(1) }),
+  )
+  .handler(async ({ data }) => {
+    return { apiKeys: listApiKeys(data.password) };
+  });
+
+export const revokeApiKeyFn = createServerFn({ method: 'POST' })
+  .validator(
+    z.object({ key: z.string().min(1), password: z.string().min(1) }),
+  )
+  .handler(async ({ data }) => {
+    return { revoked: revokeApiKey(data.key, data.password) };
+  });
+
+export const getShotLogsFn = createServerFn({ method: 'GET' })
+  .handler(async () => {
+    requireApiKey();
+    return { logs: await getShotLogs() };
   });
 
 export const getPromptApiFn = createServerFn({ method: 'GET' })

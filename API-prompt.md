@@ -21,6 +21,20 @@ Ce document décrit l'API machine learning exposée par l'application.
 - Méthode : GET
 - Retour : liste des commandes disponibles.
 
+### `listApiKeysFn`
+
+- Méthode : POST
+- Payload : `{ password: string }`
+- Retour : `{ apiKeys: Array<{ key: string; createdAt: string; revoked: boolean }> }`
+- Description : liste les clés API générées en conservant leur état de révocation.
+
+### `revokeApiKeyFn`
+
+- Méthode : POST
+- Payload : `{ key: string; password: string }`
+- Retour : `{ revoked: ApiKeyRecord }`
+- Description : révoque une clé API existante.
+
 ### `configureNetworkFn`
 
 - Méthode : POST
@@ -81,6 +95,13 @@ Ce document décrit l'API machine learning exposée par l'application.
 
 - Méthode : GET
 - Description : retourne un prompt d'utilisation de l'API.
+
+### `getShotLogsFn`
+
+- Méthode : GET
+- Headers : `Authorization: Bearer <apiKey>`
+- Retour : `{ logs: ShotLogRow[] }`
+- Description : récupère l'historique des tirs enregistrés.
 
 ## Exemple d'utilisation
 

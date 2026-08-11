@@ -2,7 +2,7 @@
 
 # Projet : Ballistic Lab
 
-> Build : v1.3.1 · 10/08/2026 01:01 UTC
+> Build : v1.3.3 · 11/08/2026 21:59 UTC
 
 
 ## Présentation
@@ -24,6 +24,15 @@ Développer une application web interactive simulant un canon en 2 dimensions pe
 ---
 
 
+
+## API machine learning
+
+- Génération de clés API sécurisées.
+- Lecture de l'état courant du modèle.
+- Configuration du réseau de neurones (`hiddenLayers`, `epochs`).
+- Entraînement des modèles `deeprl`, `ridge` et `knn`.
+- Prédiction de tir, simulation de tir et lecture de l'historique des tirs.
+- Révocation des clés API et liste des clés générées.
 
 # Technologies
 
