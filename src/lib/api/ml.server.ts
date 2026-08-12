@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { getRequestHeader } from '@tanstack/react-start/server';
 import { simulateShot, type Environment } from '../ballistics/physics';
 import type { ModelId, RlConfig } from '../ml/registry';
@@ -6,58 +5,83 @@ import { trainModel, type TrainedModel } from '../ml/training';
 import type { Prediction } from '../ml/types';
 import { fetchShotLogs } from '../logging/shot-log';
 
-export const API_PASSWORD = 'Ilian2008';
-
 export interface ApiKeyRecord {
-  key: string;
+  id: string;
+  label: string;
   createdAt: string;
   revoked: boolean;
+  revokedAt: string | null;
+  lastUsedAt: string | null;
 }
 
-const apiKeyStore: ApiKeyRecord[] = [];
+const API_ADMIN_PASSWORD = process.env['API_ADMIN_PASSWORD'];
+const DEFAULT_API_KEY = 'c423fdbadfbff6bea5d41a1b5319abeea2cecaed61a30413';
+const API_KEY_RECORD: ApiKeyRecord = {
+  id: 'default',
+  label: 'fixed',
+  createdAt: new Date().toISOString(),
+  revoked: false,
+  revokedAt: null,
+  lastUsedAt: null,
+};
 
-function buildApiKey(): string {
-  return crypto.randomBytes(24).toString('hex');
-}
-
-export function generateApiKey(password: string): string {
-  if (password !== API_PASSWORD) {
-    throw new Error('Unauthorized: invalid password');
+function getAdminPassword(): string {
+  if (!API_ADMIN_PASSWORD) {
+    throw new Error('Server misconfiguration: API_ADMIN_PASSWORD is not set');
   }
-
-  const apiKey = buildApiKey();
-  apiKeyStore.push({ key: apiKey, createdAt: new Date().toISOString(), revoked: false });
-  return apiKey;
+  return API_ADMIN_PASSWORD;
 }
 
-export function requireApiKey(): void {
-  const authHeader = getRequestHeader('Authorization') ?? getRequestHeader('authorization');
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+function ensureAdminPassword(password: string): void {
+  if (password !== getAdminPassword()) {
+    throw new Error('Unauthorized: invalid admin password');
+  }
+}
 
-  const keyRecord = token ? apiKeyStore.find((record) => record.key === token) : undefined;
-  if (!token || !keyRecord || keyRecord.revoked) {
+function parseBearerToken(headerValue: string | null | undefined): string | null {
+  if (!headerValue) return null;
+  const token = headerValue.startsWith('Bearer ') ? headerValue.slice(7) : headerValue;
+  return token.trim() || null;
+}
+
+export async function generateApiKey(password: string): Promise<string> {
+  ensureAdminPassword(password);
+  API_KEY_RECORD.revoked = false;
+  API_KEY_RECORD.revokedAt = null;
+  return DEFAULT_API_KEY;
+}
+
+export async function requireApiKey(): Promise<void> {
+  const authHeader = getRequestHeader('Authorization') ?? getRequestHeader('authorization');
+  const token = parseBearerToken(authHeader);
+  if (!token || !(await verifyApiKey(token))) {
     throw new Error('Unauthorized: API key missing, invalid or revoked');
   }
 }
 
-export function listApiKeys(password: string): ApiKeyRecord[] {
-  if (password !== API_PASSWORD) {
-    throw new Error('Unauthorized: invalid password');
-  }
-  return apiKeyStore.map((record) => ({ ...record }));
+export async function listApiKeys(password: string): Promise<ApiKeyRecord[]> {
+  ensureAdminPassword(password);
+  return [{ ...API_KEY_RECORD }];
 }
 
-export function revokeApiKey(key: string, password: string): ApiKeyRecord {
-  if (password !== API_PASSWORD) {
-    throw new Error('Unauthorized: invalid password');
-  }
-
-  const record = apiKeyStore.find((item) => item.key === key);
-  if (!record) {
+export async function revokeApiKey(identifier: string, password: string): Promise<ApiKeyRecord> {
+  ensureAdminPassword(password);
+  if (identifier !== API_KEY_RECORD.id && identifier !== DEFAULT_API_KEY) {
     throw new Error('NotFound: api key not found');
   }
-  record.revoked = true;
-  return record;
+
+  API_KEY_RECORD.revoked = true;
+  API_KEY_RECORD.revokedAt = new Date().toISOString();
+  return { ...API_KEY_RECORD };
+}
+
+export async function verifyApiKey(authorizationHeader: string | null | undefined): Promise<boolean> {
+  const token = parseBearerToken(authorizationHeader);
+  if (!token) return false;
+  if (token !== DEFAULT_API_KEY) return false;
+  if (API_KEY_RECORD.revoked) return false;
+  API_KEY_RECORD.lastUsedAt = new Date().toISOString();
+  return true;
 }
 
 export function getShotLogs(limit = 50) {

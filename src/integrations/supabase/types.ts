@@ -74,6 +74,36 @@ export type Database = {
         }
         Relationships: []
       }
+      api_keys: {
+        Row: {
+          id: string
+          label: string
+          key_hash: string
+          created_at: string
+          revoked: boolean
+          revoked_at: string | null
+          last_used_at: string | null
+        }
+        Insert: {
+          id?: string
+          label?: string
+          key_hash: string
+          created_at?: string
+          revoked?: boolean
+          revoked_at?: string | null
+          last_used_at?: string | null
+        }
+        Update: {
+          id?: string
+          label?: string
+          key_hash?: string
+          created_at?: string
+          revoked?: boolean
+          revoked_at?: string | null
+          last_used_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

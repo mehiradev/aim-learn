@@ -1,7 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import {
-  API_KEY_HASH,
   executeMlCommand,
   generateApiKey,
   getMlState,
@@ -16,7 +15,6 @@ import {
   listApiKeys,
   revokeApiKey,
   getShotLogs,
-  sha256,
 } from './ml.server';
 
 export const getApiCommands = createServerFn({ method: 'GET' })
@@ -27,7 +25,7 @@ export const getApiKey = createServerFn({ method: 'POST' })
     z.object({ password: z.string().min(1) }),
   )
   .handler(async ({ data }) => {
-    return { apiKey: generateApiKey(data.password) };
+    return { apiKey: await generateApiKey(data.password) };
   });
 
 export const listApiKeysFn = createServerFn({ method: 'POST' })
@@ -35,7 +33,7 @@ export const listApiKeysFn = createServerFn({ method: 'POST' })
     z.object({ password: z.string().min(1) }),
   )
   .handler(async ({ data }) => {
-    return { apiKeys: listApiKeys(data.password) };
+    return { apiKeys: await listApiKeys(data.password) };
   });
 
 export const revokeApiKeyFn = createServerFn({ method: 'POST' })
@@ -43,12 +41,12 @@ export const revokeApiKeyFn = createServerFn({ method: 'POST' })
     z.object({ key: z.string().min(1), password: z.string().min(1) }),
   )
   .handler(async ({ data }) => {
-    return { revoked: revokeApiKey(data.key, data.password) };
+    return { revoked: await revokeApiKey(data.key, data.password) };
   });
 
 export const getShotLogsFn = createServerFn({ method: 'GET' })
   .handler(async () => {
-    requireApiKey();
+    await requireApiKey();
     return { logs: await getShotLogs() };
   });
 
@@ -58,14 +56,14 @@ export const getPromptApiFn = createServerFn({ method: 'GET' })
 export const getState = createServerFn({ method: 'GET' })
   .validator(() => ({}))
   .handler(async () => {
-    requireApiKey();
+    await requireApiKey();
     return getMlState();
   });
 
 export const resetState = createServerFn({ method: 'POST' })
   .validator(() => ({}))
   .handler(async () => {
-    requireApiKey();
+    await requireApiKey();
     return resetMlState();
   });
 
@@ -77,7 +75,7 @@ export const configureNetworkFn = createServerFn({ method: 'POST' })
     }),
   )
   .handler(async ({ data }) => {
-    requireApiKey();
+    await requireApiKey();
     return configureNetwork(data);
   });
 
@@ -104,14 +102,14 @@ export const trainModelFn = createServerFn({ method: 'POST' })
     }),
   )
   .handler(async ({ data }) => {
-    requireApiKey();
+    await requireApiKey();
     return trainModelApi(data);
   });
 
 export const predictFn = createServerFn({ method: 'POST' })
   .validator(z.object({ distance: z.number().min(0), mass: z.number().positive() }))
   .handler(async ({ data }) => {
-    requireApiKey();
+    await requireApiKey();
     return predictApi(data);
   });
 
@@ -129,7 +127,7 @@ export const simulateShotFn = createServerFn({ method: 'POST' })
     }),
   )
   .handler(async ({ data }) => {
-    requireApiKey();
+    await requireApiKey();
     return simulateShotApi(data);
   });
 
@@ -141,9 +139,6 @@ export const executeMlCommandFn = createServerFn({ method: 'POST' })
     }),
   )
   .handler(async ({ data }) => {
-    requireApiKey();
+    await requireApiKey();
     return executeMlCommand(data.command, data.payload);
   });
-
-export const getApiKeyHash = createServerFn({ method: 'GET' })
-  .handler(async () => ({ apiKeyHash: API_KEY_HASH }));

@@ -31,10 +31,16 @@ export function SettingsPanel({ lab }: { lab: Lab }) {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [creatingApiKey, setCreatingApiKey] = useState(false);
-  const [apiKeys, setApiKeys] = useState<{ key: string; createdAt: string; revoked: boolean }[]>([]);
+  const [apiKeys, setApiKeys] = useState<{
+    id: string;
+    label: string;
+    createdAt: string;
+    revoked: boolean;
+    revokedAt: string | null;
+    lastUsedAt: string | null;
+  }[]>([]);
   const [apiKeyListError, setApiKeyListError] = useState<string | null>(null);
   const [loadingApiKeys, setLoadingApiKeys] = useState(false);
-  const [visibleApiKey, setVisibleApiKey] = useState<string | null>(null);
 
   const handleCreateApiKey = async () => {
     setApiError(null);
@@ -69,11 +75,10 @@ export function SettingsPanel({ lab }: { lab: Lab }) {
     }
   };
 
-  const handleRevokeApiKey = async (key: string) => {
+  const handleRevokeApiKey = async (id: string) => {
     setApiKeyListError(null);
     try {
-      await revokeApiKeyFn({ data: { key, password: apiPassword } });
-      if (visibleApiKey === key) setVisibleApiKey(null);
+      await revokeApiKeyFn({ data: { key: id, password: apiPassword } });
       void refreshApiKeys();
     } catch (error) {
       setApiKeyListError(error instanceof Error ? error.message : "Erreur inconnue");
@@ -240,32 +245,21 @@ export function SettingsPanel({ lab }: { lab: Lab }) {
           ) : (
             <div className="space-y-3">
               {apiKeys.map((record) => {
-                const visible = visibleApiKey === record.key;
-                const maskedKey = record.revoked
+                const mask = record.revoked
                   ? '🔒 clé révoquée'
-                  : `${record.key.slice(0, 6)}…${record.key.slice(-6)}`;
+                  : `${record.id.slice(0, 6)}…${record.id.slice(-6)}`;
                 return (
-                  <div key={record.key} className="rounded-lg border border-border bg-background/80 p-3">
+                  <div key={record.id} className="rounded-lg border border-border bg-background/80 p-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="font-mono text-sm break-all">
-                        {visible ? record.key : maskedKey}
+                        {record.label ? `${record.label} · ${mask}` : mask}
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        {!record.revoked && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setVisibleApiKey(visible ? null : record.key)}
-                          >
-                            {visible ? 'Masquer' : 'Afficher'}
-                          </Button>
-                        )}
                         <Button
                           type="button"
                           variant="destructive"
                           size="sm"
-                          onClick={() => handleRevokeApiKey(record.key)}
+                          onClick={() => handleRevokeApiKey(record.id)}
                           disabled={record.revoked}
                         >
                           Révoquer
@@ -280,7 +274,18 @@ export function SettingsPanel({ lab }: { lab: Lab }) {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}</span>
-                      {record.revoked && <span className="text-destructive">Révoquée</span>}
+                      <div className="flex flex-wrap items-center gap-2">
+                        {record.lastUsedAt && (
+                          <span>Dernière utilisation le {new Date(record.lastUsedAt).toLocaleString('fr-FR', {
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}</span>
+                        )}
+                        {record.revoked && <span className="text-destructive">Révoquée</span>}
+                      </div>
                     </div>
                   </div>
                 );
